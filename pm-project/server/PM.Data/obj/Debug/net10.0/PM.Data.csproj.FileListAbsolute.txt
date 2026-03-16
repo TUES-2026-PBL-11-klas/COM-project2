@@ -1,0 +1,13 @@
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/bin/Debug/net10.0/PM.Data.deps.json
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/bin/Debug/net10.0/PM.Data.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/bin/Debug/net10.0/PM.Data.pdb
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.csproj.AssemblyReference.cache
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.GeneratedMSBuildEditorConfig.editorconfig
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.AssemblyInfoInputs.cache
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.AssemblyInfo.cs
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.csproj.CoreCompileInputs.cache
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.sourcelink.json
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/refint/PM.Data.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/PM.Data.pdb
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.Data/obj/Debug/net10.0/ref/PM.Data.dll
