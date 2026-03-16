@@ -19,13 +19,13 @@ function HomePage() {
           <div className="mentor-card">
             <h3>Ivan Petrov</h3>
             <p>Math Mentor</p>
-            <p>⭐ 4.8</p>
+            <p>Rate: 4.8 / 5</p>
           </div>
 
           <div className="mentor-card">
             <h3>Maria Dimitrova</h3>
             <p>English Mentor</p>
-            <p>⭐ 4.6</p>
+            <p>Rate: 4.6 / 5</p>
           </div>
 
         </div>
