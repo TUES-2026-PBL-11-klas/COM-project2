@@ -7,7 +7,7 @@ body {
   color: var(--text-primary);
 }
 
-/* NAVBAR */
+
 
 nav {
   display: flex;
@@ -24,13 +24,13 @@ nav a {
   text-decoration: none;
 }
 
-/* CONTAINERS */
+
 
 .container {
   padding: 40px;
 }
 
-/* BUTTON */
+
 
 button {
   background: var(--primary);
@@ -45,7 +45,7 @@ button:hover {
   background: var(--secondary);
 }
 
-/* FORMS */
+
 
 form {
   max-width: 400px;
@@ -62,7 +62,7 @@ input {
   margin-bottom: 20px;
 }
 
-/* MENTOR CARDS */
+
 
 .mentor-list {
   display: flex;
