@@ -11,9 +11,7 @@ function HomePage() {
         <h1>Find Your Mentor</h1>
 
         <input placeholder="Search mentor by subject..." />
-
         <h2>Recommended Mentors</h2>
-
         <div className="mentor-list">
 
           <div className="mentor-card">
