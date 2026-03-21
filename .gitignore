@@ -30,6 +30,6 @@ wwwroot/lib/
 *.xcuserstate
 *.xcworkspace/xcuserdata/*.xcuserstate
 P&M/P&M.xcodeproj/project.xcworkspace/xcuserdata/
-[backend-features 1fe634b] Ignore Xcode user workspace state filesecho
- 1 file changed, 0 insertions(+), 0 deletions(-)
 P&M/P&M.xcodeproj/project.xcworkspace/xcuserdata/
+appsettings.json
+appsettings.*.json
