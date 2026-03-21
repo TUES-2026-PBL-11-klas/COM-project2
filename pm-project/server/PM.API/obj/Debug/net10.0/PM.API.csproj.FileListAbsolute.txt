@@ -56,3 +56,11 @@
 /Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/NSwag.Generation.dll
 /Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/NSwag.Generation.AspNetCore.dll
 /Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/YamlDotNet.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/Microsoft.IdentityModel.Abstractions.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/Microsoft.IdentityModel.JsonWebTokens.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/Microsoft.IdentityModel.Logging.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/Microsoft.IdentityModel.Protocols.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/Microsoft.IdentityModel.Tokens.dll
+/Users/martinvalentinov/Desktop/Forgotten/nga2/pm-project/server/PM.API/bin/Debug/net10.0/System.IdentityModel.Tokens.Jwt.dll
