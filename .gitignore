@@ -29,7 +29,6 @@ node_modules/
 wwwroot/lib/
 *.xcuserstate
 *.xcworkspace/xcuserdata/*.xcuserstate
-P&M/P&M.xcodeproj/project.xcworkspace/xcuserdata/
-P&M/P&M.xcodeproj/project.xcworkspace/xcuserdata/
+DerivedData/
 appsettings.json
 appsettings.*.json
