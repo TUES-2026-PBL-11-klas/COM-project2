@@ -227,7 +227,6 @@ obj/
 .env.*
 
 secrets.json
-*.json
 logs/
 *.log
 
