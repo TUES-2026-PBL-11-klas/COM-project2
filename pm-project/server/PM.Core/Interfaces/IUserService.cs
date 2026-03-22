@@ -6,5 +6,6 @@ namespace PM.Core.Interfaces
     {
         LoginResponseDto Login(LoginRequestDto request);
         RegisterResponseDto Register(RegisterRequestDto request);
+        void UpdateUserRole(string username, List<string> roleName);
     }
 }

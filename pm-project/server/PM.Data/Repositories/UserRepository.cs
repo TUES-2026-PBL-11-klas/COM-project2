@@ -19,7 +19,9 @@ namespace PM.Data.Repositories
 
         public UserDMO? GetByUsername(string username)
         {
-            return _context.Users.FirstOrDefault(u => u.Username == username);
+            return _context.Users
+                .Include(u => u.Roles)
+                .FirstOrDefault(u => u.Username == username);
         }
 
         public void SaveChanges()

@@ -5,6 +5,7 @@ using PM.Core.Services;
 using PM.Core.Interfaces;
 using PM.API.Middleware;
 using PM.API.Extensions;
+using PM.Data.Seed;
 
 using DotNetEnv;
 
@@ -18,12 +19,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<ITokenService, TokenService>();
 
 builder.Services.AddJwtAuth(builder.Configuration);
 
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+using var scope = app.Services.CreateScope();
+var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+RoleSeeder.SeedRoles(dbContext);
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 

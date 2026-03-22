@@ -1,10 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using PM.Core.DTOs;
 using PM.Core.Interfaces;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 
 namespace PM.API.Controllers
@@ -14,24 +10,26 @@ namespace PM.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly IConfiguration _configuration;
+        private readonly ITokenService _tokenService;
 
-        public AuthController(IUserService userService, IConfiguration configuration)
+        public AuthController(IUserService userService, ITokenService tokenService)
         {
             _userService = userService;
-            _configuration = configuration;
+            _tokenService = tokenService;
         }
 
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterRequestDto request)
         {
-            var userDto = _userService.Register(request);
-            var token = GenerateJwtToken(userDto.Username);
+            var user = _userService.Register(request);
+            var roles = user.Roles?.ToList() ?? new List<string>();
+            var token = _tokenService.GenerateToken(user.Username, roles);
 
             return Ok(new RegisterResponseDto
             {
-                Username = userDto.Username,
-                Email = userDto.Email,
+                Username = user.Username,
+                Email = user.Email,
+                Roles = roles,
                 Token = token
             });
         }
@@ -39,14 +37,25 @@ namespace PM.API.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequestDto request)
         {
-            var userDto = _userService.Login(request);
-            var token = GenerateJwtToken(userDto.Username);
+            var user = _userService.Login(request);
+            var roles = user.Roles?.ToList() ?? new List<string>();
+
+            var token = _tokenService.GenerateToken(user.Username, roles);
 
             return Ok(new LoginResponseDto
             {
-                Username = userDto.Username,
+                Username = user.Username,
+                Roles = roles,
                 Token = token
             });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("promote/{username}")]
+        public IActionResult PromoteUser(string username, [FromBody] List<string> roleNames)
+        {
+            _userService.UpdateUserRole(username, roleNames);
+            return Ok($"User '{username}' roles promoted to: {string.Join(", ", roleNames)}");        
         }
 
         [Authorize]
@@ -56,26 +65,5 @@ namespace PM.API.Controllers
             return Ok(new { Username = User.Identity.Name });
         }
         // tva za test prosto
-
-        private string GenerateJwtToken(string username)
-        {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.Name, username)
-            };
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddHours(1),
-                signingCredentials: creds
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
     }
 }
