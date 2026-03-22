@@ -25,50 +25,36 @@ namespace PM.API.Controllers
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterRequestDto request)
         {
-            try
-            {
-                var userDto = _userService.Register(request);
-                var token = GenerateJwtToken(userDto.Username);
+            var userDto = _userService.Register(request);
+            var token = GenerateJwtToken(userDto.Username);
 
-                return Ok(new RegisterResponseDto
-                {
-                    Username = userDto.Username,
-                    Email = userDto.Email,
-                    Token = token
-                });
-            }
-            catch (Exception ex)
+            return Ok(new RegisterResponseDto
             {
-                return BadRequest(new { Error = ex.Message });
-            }
+                Username = userDto.Username,
+                Email = userDto.Email,
+                Token = token
+            });
         }
 
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequestDto request)
         {
-            try
-            {
-                var userDto = _userService.Login(request);
-                var token = GenerateJwtToken(userDto.Username);
+            var userDto = _userService.Login(request);
+            var token = GenerateJwtToken(userDto.Username);
 
-                return Ok(new LoginResponseDto
-                {
-                    Username = userDto.Username,
-                    Token = token
-                });
-            }
-            catch (Exception ex)
+            return Ok(new LoginResponseDto
             {
-                return Unauthorized(new { Error = ex.Message });
-            }
+                Username = userDto.Username,
+                Token = token
+            });
         }
 
-        // [Authorize]
-        // [HttpGet("me")]
-        // public IActionResult GetMe()
-        // {
-        //     return Ok(new { Username = User.Identity.Name });
-        // }
+        [Authorize]
+        [HttpGet("me")]
+        public IActionResult GetMe()
+        {
+            return Ok(new { Username = User.Identity.Name });
+        }
         // tva za test prosto
 
         private string GenerateJwtToken(string username)

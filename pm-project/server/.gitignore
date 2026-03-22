@@ -227,7 +227,6 @@ obj/
 .env.*
 
 secrets.json
-appsettings.json
 *.json
 logs/
 *.log
@@ -236,3 +235,4 @@ logs/
 *.sqlite3
 
 *.swp
+.env

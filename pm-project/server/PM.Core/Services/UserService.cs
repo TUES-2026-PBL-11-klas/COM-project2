@@ -3,6 +3,7 @@ using PM.Core.DTOs;
 using PM.Data.Entities;
 using PM.Data.Repositories;
 using Microsoft.AspNetCore.Identity;
+using PM.Core.Exceptions;
 
 namespace PM.Core.Services
 {
@@ -20,7 +21,7 @@ namespace PM.Core.Services
         public RegisterResponseDto Register(RegisterRequestDto request)
         {
             if (_repo.GetByUsername(request.Username) != null)
-                throw new Exception("Username already exists");
+                throw new UserAlreadyExistsException(request.Username);
 
             var user = new UserDMO
             {
@@ -42,11 +43,11 @@ namespace PM.Core.Services
         public LoginResponseDto Login(LoginRequestDto request)
         {
             var user = _repo.GetByUsername(request.Username)
-                ?? throw new Exception("User not found"); // trqq se adne custom exception
+                ?? throw new InvalidCredentialsException();
 
             var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
             if (result != PasswordVerificationResult.Success)
-                throw new Exception("Invalid password");
+                throw new InvalidCredentialsException();
 
             return new LoginResponseDto
             {
