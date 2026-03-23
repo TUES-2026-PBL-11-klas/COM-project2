@@ -25,6 +25,7 @@ namespace PM.API.Middleware
                 {
                     UserAlreadyExistsException => 400,
                     InvalidCredentialsException => 401,
+                    UserNotFoundException => 404,
                     _ => 500, // tva e za default
                 };
                 await context.Response.WriteAsync(

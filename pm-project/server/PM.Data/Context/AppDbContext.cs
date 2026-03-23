@@ -22,9 +22,5 @@ namespace PM.Data.Context
                 .WithMany(r => r.Users)
                 .UsingEntity(j => j.ToTable("UserRoles"));
         }
-        // oshte tablichki
-        // public DbSet<MentorDMO> Mentors { get; set; }
-        // public DbSet<ReviewDMO> Reviews { get; set; }
-        // public DbSet<SessionDMO> Sessions { get; set; }
     }
 }
