@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { register } from "../../services/authService";
+import { registerVM } from "../../viewmodel/auth/authViewModel";
 import { saveToken } from "../../utils/storage";
 import { useRouter } from "expo-router";
 
@@ -20,7 +20,7 @@ export default function Register() {
 
   const handleRegister = async () => {
     try {
-      const res = await register(username, email, password);
+      const res = await registerVM(username, email, password);
 
       if (res.token) {
         await saveToken(res.token);

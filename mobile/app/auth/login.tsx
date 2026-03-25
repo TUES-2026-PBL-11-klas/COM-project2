@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { login } from "../../services/authService";
+import { loginVM } from "../../viewmodel/auth/authViewModel";
 import { saveToken } from "../../utils/storage";
 import { useRouter } from "expo-router";
 
@@ -19,7 +19,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     try {
-      const res = await login(username, password);
+      const res = await loginVM(username, password);
 
       if (res.token) {
         await saveToken(res.token);
