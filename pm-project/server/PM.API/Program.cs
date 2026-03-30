@@ -6,6 +6,7 @@ using PM.Core.Interfaces;
 using PM.API.Middleware;
 using PM.API.Extensions;
 using PM.Data.Seed;
+using PM.API.Hubs;
 
 using DotNetEnv;
 
@@ -20,10 +21,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 
 builder.Services.AddJwtAuth(builder.Configuration);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -37,5 +40,6 @@ app.UseMiddleware<LoggingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChatHub>("/chat");
 
 app.Run();
