@@ -14,20 +14,32 @@ export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
   const handleRegister = async () => {
+    if (!username || !email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await registerVM(username, email, password);
 
       if (res.token) {
-        router.replace("/");
+        setUsername("");
+        setEmail("");
+        setPassword("");
+        router.replace("/tabs");
       } else {
         Alert.alert("Error", "No token received");
       }
     } catch (err: any) {
-      Alert.alert("Registration failed", err.message);
+      Alert.alert("Registration failed", err.message || "An error occurred");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,6 +54,7 @@ export default function Register() {
           value={username}
           onChangeText={setUsername}
           style={styles.input}
+          editable={!loading}
         />
 
         <TextInput
@@ -50,6 +63,7 @@ export default function Register() {
           onChangeText={setEmail}
           style={styles.input}
           keyboardType="email-address"
+          editable={!loading}
         />
 
         <TextInput
@@ -58,10 +72,17 @@ export default function Register() {
           value={password}
           onChangeText={setPassword}
           style={styles.input}
+          editable={!loading}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          <Text style={styles.buttonText}>Register</Text>
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Registering..." : "Register"}
+          </Text>
         </TouchableOpacity>
 
         <Text style={styles.link} onPress={() => router.push("/auth/login")}>
@@ -113,6 +134,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
+  },
+  buttonDisabled: {
+    backgroundColor: "#93C5FD",
+    opacity: 0.7,
   },
   buttonText: {
     color: "#fff",

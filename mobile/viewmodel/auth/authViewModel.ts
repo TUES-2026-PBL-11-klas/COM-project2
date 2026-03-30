@@ -1,8 +1,10 @@
-import { loginUser, registerUser } from "../../services/authService";
 import { saveToken } from "../../utils/storage";
+import { mockLogin, mockRegister } from "../../services/mockAuthService";
 
+// Use mock authentication for development
+// To use real backend, change these to loginUser/registerUser from authService
 export async function loginVM(username: string, password: string) {
-  const res = await loginUser(username, password);
+  const res = await mockLogin(username, password);
 
   if (res.token) {
     await saveToken(res.token);
@@ -16,7 +18,7 @@ export async function registerVM(
   email: string,
   password: string
 ) {
-  const res = await registerUser(username, email, password);
+  const res = await mockRegister(username, email, password);
 
   if (res.token) {
     await saveToken(res.token);

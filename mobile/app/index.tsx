@@ -1,8 +1,24 @@
 import { useEffect } from "react";
 import { useRouter } from "expo-router";
 import { getToken } from "../utils/storage";
-import RootNavigator from "../view/auth/navigation/RootNavigator";
+
 
 export default function Index() {
-  return <RootNavigator />;
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = await getToken();
+
+      if (token) {
+        router.replace("/tabs");
+      } else {
+        router.replace("/home");
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  return null;
 }
