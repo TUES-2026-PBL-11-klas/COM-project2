@@ -8,7 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import { getMentors } from "../../../viewmodel/home/homeViewModel";
+import { getMentors } from "../../../viewmodels/home/homeViewModel";
 
 export default function HomeView() {
   const [mentors, setMentors] = useState<any[]>([]);

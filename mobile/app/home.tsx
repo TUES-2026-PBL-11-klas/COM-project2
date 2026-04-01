@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
-import HomePage from "../view/home/HomePage";
+import HomePage from "../src/views/home/HomePage";
 
 export default function Home() {
   const router = useRouter();
@@ -8,7 +8,7 @@ export default function Home() {
   // Check if user is logged in and redirect to tabs
   useEffect(() => {
     const checkAndRedirect = async () => {
-      const { getToken } = await import("../utils/storage");
+      const { getToken } = await import("../src/utils/storage");
       const token = await getToken();
       if (token) {
         router.replace("/tabs");

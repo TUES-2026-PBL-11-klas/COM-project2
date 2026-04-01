@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { loginVM } from "../../viewmodel/auth/authViewModel";
+import { loginVM } from "../../viewmodels/auth/authViewModel";
 import { useRouter } from "expo-router";
 
 export default function Login() {

@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { registerVM }from "../../viewmodel/auth/authViewModel";
+import { registerVM }from "../../viewmodels/auth/authViewModel";
 import { useRouter } from "expo-router";
 
 export default function Register() {

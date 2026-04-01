@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useRouter } from "expo-router";
-import { getToken } from "../utils/storage";
+import { getToken } from "../src/utils/storage";
 
 
 export default function Index() {
