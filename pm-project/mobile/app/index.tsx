@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useRouter } from "expo-router";
-import { getToken } from "../utils/storage";
+import { getToken } from "../src/utils/storage";
+
 
 export default function Index() {
   const router = useRouter();
@@ -10,9 +11,9 @@ export default function Index() {
       const token = await getToken();
 
       if (token) {
-        router.replace("/(tabs)");
+        router.replace("/tabs");
       } else {
-        router.replace("/(auth)/login");
+        router.replace("/home");
       }
     };
 

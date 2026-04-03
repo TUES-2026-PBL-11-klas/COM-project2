@@ -62,7 +62,7 @@ namespace PM.API.Controllers
         [HttpGet("me")]
         public IActionResult GetMe()
         {
-            return Ok(new { Username = User.Identity.Name });
+            return Ok(new { Username = User?.Identity?.Name });
         }
         // tva za test prosto
     }

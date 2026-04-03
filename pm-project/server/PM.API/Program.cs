@@ -27,6 +27,15 @@ builder.Services.AddJwtAuth(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -37,6 +46,7 @@ RoleSeeder.SeedRoles(dbContext);
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseMiddleware<LoggingMiddleware>();
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
