@@ -9,47 +9,72 @@ using PM.Data.Seed;
 using PM.API.Hubs;
 
 using DotNetEnv;
+using Serilog;
 
 Env.Load();
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddEnvironmentVariables();
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables()
+    .Build();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseInMemoryDatabase("TempDb"));
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(configuration)
+    .Enrich.FromLogContext()
+    .CreateLogger();
 
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddSingleton<ITokenService, TokenService>();
-builder.Services.AddScoped<IChatService, ChatService>();
-
-builder.Services.AddJwtAuth(builder.Configuration);
-
-builder.Services.AddControllers();
-builder.Services.AddSignalR();
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("AllowAll", policy =>
+    Log.Information("Starting web host");
+
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Host.UseSerilog();
+    builder.Configuration.AddConfiguration(configuration);
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseInMemoryDatabase("TempDb"));
+
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
+    builder.Services.AddScoped<IUserService, UserService>();
+    builder.Services.AddSingleton<ITokenService, TokenService>();
+    builder.Services.AddScoped<IChatService, ChatService>();
+
+    builder.Services.AddJwtAuth(builder.Configuration);
+
+    builder.Services.AddControllers();
+    builder.Services.AddSignalR();
+    builder.Services.AddCors(options =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
     });
-});
 
-var app = builder.Build();
+    var app = builder.Build();
 
-using var scope = app.Services.CreateScope();
-var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-RoleSeeder.SeedRoles(dbContext);
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    RoleSeeder.SeedRoles(dbContext);
 
-app.UseMiddleware<ErrorHandlingMiddleware>();
+    app.UseMiddleware<ErrorHandlingMiddleware>();
 
-app.UseMiddleware<LoggingMiddleware>();
-app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-app.MapHub<ChatHub>("/chat");
+    app.UseMiddleware<LoggingMiddleware>();
+    app.UseCors("AllowAll");
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapControllers();
+    app.MapHub<ChatHub>("/chat");
 
-app.Run();
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Host terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
