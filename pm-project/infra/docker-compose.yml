@@ -1,12 +1,11 @@
-version: "3.9"
-
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - xpack.security.enabled=false # za debug
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - logger.level=error
     ports:
       - "9200:9200"
     networks:
@@ -16,6 +15,7 @@ services:
     image: docker.elastic.co/kibana/kibana:8.11.1
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - LOGGING_ROOT_LEVEL=error
     ports:
       - "5601:5601"
     networks:
@@ -23,18 +23,29 @@ services:
     depends_on:
       - elasticsearch
 
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - elk
+
   pm-api:
     build:
-      context: ../server/PM.API
-      dockerfile: Dockerfile
+      context: ../server
+      dockerfile: PM.API/Dockerfile
+    env_file:
+      - ../server/PM.API/.env
     environment:
       - DOTNET_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5130
     ports:
       - "5130:5130"
     depends_on:
-      - db
       - elasticsearch
+      - prometheus
     networks:
       - elk
 

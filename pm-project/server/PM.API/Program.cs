@@ -8,6 +8,7 @@ using PM.API.Extensions;
 using PM.Data.Seed;
 using PM.API.Hubs;
 
+using Prometheus;
 using DotNetEnv;
 using Serilog;
 
@@ -67,6 +68,9 @@ try
     app.UseAuthorization();
     app.MapControllers();
     app.MapHub<ChatHub>("/chat");
+
+    app.UseHttpMetrics();
+    app.MapMetrics();
 
     app.Run();
 }
