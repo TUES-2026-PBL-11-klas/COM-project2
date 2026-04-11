@@ -8,7 +8,10 @@ using PM.API.Extensions;
 using PM.Data.Seed;
 using PM.API.Hubs;
 
-using Prometheus;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using DotNetEnv;
 using Serilog;
 
@@ -44,15 +47,45 @@ try
 
     builder.Services.AddControllers();
     builder.Services.AddSignalR();
+
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowAll", policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.WithOrigins("http://localhost:3000")
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
     });
+
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(tracerProviderBuilder =>
+        {
+            tracerProviderBuilder
+                .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("pm-api"))
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddConsoleExporter()
+                .AddOtlpExporter(options =>
+                {
+                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/traces"); // za sega
+                    options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                });
+        })
+        .WithMetrics(metricsProviderBuilder =>
+        {
+            metricsProviderBuilder
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddRuntimeInstrumentation()
+                .AddConsoleExporter()
+                .AddOtlpExporter(options =>
+                {
+                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/metrics"); // za sega
+                    options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                });
+        });
 
     var app = builder.Build();
 
@@ -61,16 +94,13 @@ try
     RoleSeeder.SeedRoles(dbContext);
 
     app.UseMiddleware<ErrorHandlingMiddleware>();
-
     app.UseMiddleware<LoggingMiddleware>();
+
     app.UseCors("AllowAll");
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
     app.MapHub<ChatHub>("/chat");
-
-    app.UseHttpMetrics();
-    app.MapMetrics();
 
     app.Run();
 }

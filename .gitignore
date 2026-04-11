@@ -36,3 +36,5 @@ appsettings.Staging.json
 appsettings.Local.json
 appsettings.*.json
 .env
+prometheus.yml
+infra/prometheus.yml

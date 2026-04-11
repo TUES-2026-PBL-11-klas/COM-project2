@@ -1,0 +1,27 @@
+otelcol.receiver.otlp "default" {
+  grpc {}
+  http {}
+
+  output {
+    traces  = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces  = [otelcol.exporter.otlphttp.grafana.input]
+    metrics = [otelcol.exporter.otlphttp.grafana.input]
+    logs    = [otelcol.exporter.otlphttp.grafana.input]
+  }
+}
+
+otelcol.exporter.otlphttp "grafana" {
+  client {
+    endpoint = sys.env("GRAFANA_OTLP_URL")
+    headers = {
+      Authorization = "Basic " + sys.env("GRAFANA_BASIC_AUTH"),
+    }
+  }
+}
