@@ -69,7 +69,7 @@ try
                 .AddConsoleExporter()
                 .AddOtlpExporter(options =>
                 {
-                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/traces"); // za sega
+                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/traces");
                     options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
                 });
         })
@@ -82,7 +82,7 @@ try
                 .AddConsoleExporter()
                 .AddOtlpExporter(options =>
                 {
-                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/metrics"); // za sega
+                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/metrics");
                     options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
                 });
         });

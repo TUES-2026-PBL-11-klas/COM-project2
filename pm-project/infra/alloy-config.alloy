@@ -20,8 +20,30 @@ otelcol.processor.batch "default" {
 otelcol.exporter.otlphttp "grafana" {
   client {
     endpoint = sys.env("GRAFANA_OTLP_URL")
-    headers = {
-      Authorization = "Basic " + sys.env("GRAFANA_BASIC_AUTH"),
+    auth     = otelcol.auth.basic.grafana.handler
+  }
+}
+
+otelcol.auth.basic "grafana" {
+  username = "1584186"
+  password = sys.env("GRAFANA_API_KEY")
+}
+
+loki.source.docker "pm_api" {
+  host    = "unix:///var/run/docker.sock"
+  targets = [{
+    __address__    = "localhost",
+    container_name = "infra-pm-api-1",
+  }]
+  forward_to = [loki.write.grafana.receiver]
+}
+
+loki.write "grafana" {
+  endpoint {
+    url = sys.env("LOKI_URL") + "/loki/api/v1/push"
+    basic_auth {
+      username = sys.env("LOKI_USERNAME")
+      password = sys.env("LOKI_PASSWORD")
     }
   }
 }
