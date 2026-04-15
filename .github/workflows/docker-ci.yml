@@ -1,0 +1,28 @@
+name: Docker Build Verification
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'pm-project/infra/**'
+      - 'pm-project/server/**'
+      - '.github/workflows/docker-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'pm-project/infra/**'
+      - 'pm-project/server/**'
+      - '.github/workflows/docker-ci.yml'
+
+jobs:
+  docker-compose-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pm-project/infra
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Docker Compose
+      run: docker compose build
