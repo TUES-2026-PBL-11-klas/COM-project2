@@ -7,7 +7,6 @@ export async function getMentors() {
       rating: 4.9,
       experience: "10+ years",
       students: 245,
-      price: "$25/hr",
     },
     {
       id: "2",
@@ -16,7 +15,6 @@ export async function getMentors() {
       rating: 4.8,
       experience: "8 years",
       students: 189,
-      price: "$20/hr",
     },
     {
       id: "3",
@@ -25,7 +23,6 @@ export async function getMentors() {
       rating: 4.7,
       experience: "7 years",
       students: 156,
-      price: "$28/hr",
     },
     {
       id: "4",
@@ -34,7 +31,6 @@ export async function getMentors() {
       rating: 4.9,
       experience: "9 years",
       students: 212,
-      price: "$26/hr",
     },
     {
       id: "5",
@@ -43,7 +39,6 @@ export async function getMentors() {
       rating: 4.8,
       experience: "6 years",
       students: 324,
-      price: "$35/hr",
     },
     {
       id: "6",
@@ -52,7 +47,6 @@ export async function getMentors() {
       rating: 4.6,
       experience: "5 years",
       students: 98,
-      price: "$18/hr",
     },
     {
       id: "7",
@@ -61,7 +55,6 @@ export async function getMentors() {
       rating: 4.8,
       experience: "12 years",
       students: 278,
-      price: "$30/hr",
     },
     {
       id: "8",
@@ -70,7 +63,6 @@ export async function getMentors() {
       rating: 4.7,
       experience: "8 years",
       students: 167,
-      price: "$24/hr",
     },
     {
       id: "9",
@@ -79,7 +71,6 @@ export async function getMentors() {
       rating: 4.9,
       experience: "11 years",
       students: 301,
-      price: "$27/hr",
     },
     {
       id: "10",
@@ -88,7 +79,6 @@ export async function getMentors() {
       rating: 4.7,
       experience: "6 years",
       students: 134,
-      price: "$22/hr",
     },
   ];
 }

@@ -7,10 +7,14 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { getMentors } from "../../../viewmodels/home/homeViewModel";
+import { removeToken } from "../../../utils/storage";
 
 export default function HomeView() {
+  const router = useRouter();
   const [mentors, setMentors] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -34,11 +38,37 @@ export default function HomeView() {
     return matchesSearch && matchesSubject;
   });
 
+  const handleLogout = async () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await removeToken();
+            router.replace("/auth/login");
+          } catch (error) {
+            console.error("Logout error:", error);
+            Alert.alert("Error", "Failed to logout");
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Student Mentor Hub</Text>
-        <Text style={styles.subtitle}>Find your perfect tutor</Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.title}>Student Mentor Hub</Text>
+            <Text style={styles.subtitle}>Find your perfect tutor</Text>
+          </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.searchContainer}>
@@ -95,7 +125,7 @@ export default function HomeView() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        scrollEnabled={false}
+        scrollEnabled={true}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={styles.card}>
@@ -155,6 +185,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
   },
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
   title: {
     fontSize: 28,
     fontWeight: "bold",
@@ -164,6 +199,19 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: "#64748B",
+  },
+  logoutButton: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 13,
   },
   searchContainer: {
     paddingHorizontal: 20,
