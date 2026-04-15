@@ -13,7 +13,7 @@ export default function RootNavigator() {
         const token = await getToken();
 
         if (token) {
-          router.replace("/(tabs)");
+          router.replace("/");
         } else {
           router.replace("/auth/login");
         }
