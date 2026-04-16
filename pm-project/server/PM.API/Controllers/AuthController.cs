@@ -13,31 +13,28 @@ namespace PM.API.Controllers
         private readonly IUserService _userService;
         private readonly ITokenService _tokenService;
         private readonly ILogger<AuthController> _logger;
+        private readonly PM.Data.Context.AppDbContext _context;
 
-        public AuthController(IUserService userService, ITokenService tokenService, ILogger<AuthController> logger)
+        public AuthController(IUserService userService, ITokenService tokenService, ILogger<AuthController> logger, PM.Data.Context.AppDbContext context)
         {
             _userService = userService;
             _tokenService = tokenService;
             _logger = logger;
+            _context = context;
         }
 
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterRequestDto request)
         {
             _logger.LogInformation("Register attempt for " + request.Username);
-            var user = _userService.Register(request);
-            var roles = user.Roles?.ToList() ?? new List<string>();
-            var token = _tokenService.GenerateToken(user.Username, roles);
+            var resp = _userService.Register(request);
+            var roles = resp.Roles?.ToList() ?? new List<string>();
+            var token = _tokenService.GenerateToken(resp.Username, roles);
 
-            _logger.LogInformation("User registered: " + user.Username);
+            _logger.LogInformation("User registered: " + resp.Username);
 
-            return Ok(new RegisterResponseDto
-            {
-                Username = user.Username,
-                Email = user.Email,
-                Roles = roles,
-                Token = token
-            });
+            resp.Token = token;
+            return Ok(resp);
         }
 
         [HttpPost("login")]
@@ -45,19 +42,15 @@ namespace PM.API.Controllers
         {
             _logger.LogInformation("Login attempt for " + request.Username);
 
-            var user = _userService.Login(request);
-            var roles = user.Roles?.ToList() ?? new List<string>();
+            var resp = _userService.Login(request);
+            var roles = resp.Roles?.ToList() ?? new List<string>();
 
-            var token = _tokenService.GenerateToken(user.Username, roles);
+            var token = _tokenService.GenerateToken(resp.Username, roles);
 
-            _logger.LogInformation("User logged in: " + user.Username);
+            _logger.LogInformation("User logged in: " + resp.Username);
 
-            return Ok(new LoginResponseDto
-            {
-                Username = user.Username,
-                Roles = roles,
-                Token = token
-            });
+            resp.Token = token;
+            return Ok(resp);
         }
 
         [Authorize(Roles = "Admin")]
@@ -76,7 +69,12 @@ namespace PM.API.Controllers
         {
             var name = User?.Identity?.Name;
             _logger.LogInformation("GetMe called for " + name);
-            return Ok(new { Username = name });
+
+            var user = _context.Users.FirstOrDefault(u => u.Username == name);
+            if (user == null)
+                return NotFound();
+
+            return Ok(new { Username = name, Id = user.Id });
         }
         // tva za test prosto
     }

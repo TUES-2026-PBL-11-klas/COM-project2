@@ -7,7 +7,23 @@ export async function getMentors() {
       rating: 4.9,
       experience: "10+ years",
       students: 245,
-      price: "$25/hr",
+      available: true,
+      reviews: [
+        {
+          id: "r1",
+          name: "Sophia",
+          rating: 5,
+          comment: "Amazing math tutor! Explained complex calculus concepts so clearly.",
+          date: "Apr 10, 2026",
+        },
+        {
+          id: "r2",
+          name: "Liam",
+          rating: 5,
+          comment: "Helped me ace my algebra exam. Very patient and thorough.",
+          date: "Apr 8, 2026",
+        },
+      ],
     },
     {
       id: "2",
@@ -16,7 +32,23 @@ export async function getMentors() {
       rating: 4.8,
       experience: "8 years",
       students: 189,
-      price: "$20/hr",
+      available: true,
+      reviews: [
+        {
+          id: "r3",
+          name: "Alex",
+          rating: 5,
+          comment: "Great English tutor! Improved my writing skills significantly.",
+          date: "Apr 9, 2026",
+        },
+        {
+          id: "r4",
+          name: "Emma",
+          rating: 4,
+          comment: "Good explanations, but sometimes moves too fast through topics.",
+          date: "Apr 5, 2026",
+        },
+      ],
     },
     {
       id: "3",
@@ -25,7 +57,16 @@ export async function getMentors() {
       rating: 4.7,
       experience: "7 years",
       students: 156,
-      price: "$28/hr",
+      available: false,
+      reviews: [
+        {
+          id: "r5",
+          name: "Nina",
+          rating: 5,
+          comment: "Physics finally makes sense! Best tutor I've had.",
+          date: "Apr 7, 2026",
+        },
+      ],
     },
     {
       id: "4",
@@ -34,7 +75,23 @@ export async function getMentors() {
       rating: 4.9,
       experience: "9 years",
       students: 212,
-      price: "$26/hr",
+      available: true,
+      reviews: [
+        {
+          id: "r6",
+          name: "David",
+          rating: 5,
+          comment: "Chemistry expert! Made organic chemistry fun and understandable.",
+          date: "Apr 6, 2026",
+        },
+        {
+          id: "r7",
+          name: "Sarah",
+          rating: 5,
+          comment: "Helped me understand complex chemical reactions. Highly recommend!",
+          date: "Apr 3, 2026",
+        },
+      ],
     },
     {
       id: "5",
@@ -43,7 +100,30 @@ export async function getMentors() {
       rating: 4.8,
       experience: "6 years",
       students: 324,
-      price: "$35/hr",
+      available: true,
+      reviews: [
+        {
+          id: "r8",
+          name: "James",
+          rating: 5,
+          comment: "Excellent programming tutor! Learned Python from scratch.",
+          date: "Apr 8, 2026",
+        },
+        {
+          id: "r9",
+          name: "Mia",
+          rating: 4,
+          comment: "Good at explaining code concepts, but could use more examples.",
+          date: "Apr 4, 2026",
+        },
+        {
+          id: "r10",
+          name: "John",
+          rating: 5,
+          comment: "Helped me build my first app. Amazing patience and knowledge.",
+          date: "Apr 1, 2026",
+        },
+      ],
     },
     {
       id: "6",
@@ -52,7 +132,16 @@ export async function getMentors() {
       rating: 4.6,
       experience: "5 years",
       students: 98,
-      price: "$18/hr",
+      available: false,
+      reviews: [
+        {
+          id: "r11",
+          name: "Oliver",
+          rating: 4,
+          comment: "Good history knowledge, but sessions could be more engaging.",
+          date: "Apr 2, 2026",
+        },
+      ],
     },
     {
       id: "7",
@@ -61,7 +150,23 @@ export async function getMentors() {
       rating: 4.8,
       experience: "12 years",
       students: 278,
-      price: "$30/hr",
+      available: true,
+      reviews: [
+        {
+          id: "r12",
+          name: "Isabella",
+          rating: 5,
+          comment: "Outstanding math tutor! Made trigonometry easy to understand.",
+          date: "Apr 5, 2026",
+        },
+        {
+          id: "r13",
+          name: "Lucas",
+          rating: 5,
+          comment: "Helped me improve my math grades from C to A+. Very dedicated.",
+          date: "Apr 1, 2026",
+        },
+      ],
     },
     {
       id: "8",
@@ -70,7 +175,16 @@ export async function getMentors() {
       rating: 4.7,
       experience: "8 years",
       students: 167,
-      price: "$24/hr",
+      available: true,
+      reviews: [
+        {
+          id: "r14",
+          name: "Ethan",
+          rating: 5,
+          comment: "Biology finally clicked! Great explanations of complex topics.",
+          date: "Apr 4, 2026",
+        },
+      ],
     },
     {
       id: "9",
@@ -79,7 +193,23 @@ export async function getMentors() {
       rating: 4.9,
       experience: "11 years",
       students: 301,
-      price: "$27/hr",
+      available: false,
+      reviews: [
+        {
+          id: "r15",
+          name: "Ava",
+          rating: 5,
+          comment: "Exceptional English tutor! Improved my essay writing dramatically.",
+          date: "Apr 7, 2026",
+        },
+        {
+          id: "r16",
+          name: "Noah",
+          rating: 5,
+          comment: "Helped me prepare for English literature exam. Very knowledgeable.",
+          date: "Apr 3, 2026",
+        },
+      ],
     },
     {
       id: "10",
@@ -88,7 +218,16 @@ export async function getMentors() {
       rating: 4.7,
       experience: "6 years",
       students: 134,
-      price: "$22/hr",
+      available: true,
+      reviews: [
+        {
+          id: "r17",
+          name: "Mason",
+          rating: 4,
+          comment: "Solid chemistry tutoring. Good at explaining lab concepts.",
+          date: "Apr 2, 2026",
+        },
+      ],
     },
   ];
 }

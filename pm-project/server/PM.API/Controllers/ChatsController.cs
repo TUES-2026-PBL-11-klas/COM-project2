@@ -1,0 +1,101 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PM.Data.Context;
+using PM.Core.DTOs;
+using PM.Data.Entities;
+
+namespace PM.API.Controllers
+{
+    [ApiController]
+    [Route("api/chats")]
+    public class ChatsController : ControllerBase
+    {
+        private readonly AppDbContext _db;
+
+        public ChatsController(AppDbContext db)
+        {
+            _db = db;
+        }
+
+        [Authorize]
+        [HttpGet("mine")]
+        public IActionResult GetMyChats()
+        {
+            var username = User?.Identity?.Name;
+            if (username == null) return Unauthorized();
+
+            var user = _db.Users.FirstOrDefault(u => u.Username == username);
+            if (user == null) return Unauthorized();
+
+            var chats = _db.Chats
+                .Where(c => c.User1Id == user.Id || c.User2Id == user.Id)
+                .Select(c => new ChatSummaryDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    User1Id = c.User1Id,
+                    User2Id = c.User2Id,
+                    ExternalMentorId = c.ExternalMentorId,
+                    LastMessageContent = c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.Content).FirstOrDefault(),
+                    LastMessageAt = c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.CreatedAt).FirstOrDefault(),
+                    LastMessageSenderId = c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => (Guid?)m.SenderId).FirstOrDefault()
+                })
+                .ToList();
+
+            return Ok(chats);
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> CreateChat([FromBody] CreateChatDto dto)
+        {
+            var username = User?.Identity?.Name;
+            if (username == null && dto.SenderId == null) return BadRequest("senderId or auth required");
+
+            Guid senderId = Guid.Empty;
+            if (dto.SenderId.HasValue)
+                senderId = dto.SenderId.Value;
+
+            if (senderId == Guid.Empty && username != null)
+            {
+                var user = _db.Users.FirstOrDefault(u => u.Username == username);
+                if (user == null) return Unauthorized();
+                senderId = user.Id;
+            }
+
+            if (senderId == Guid.Empty) return BadRequest("senderId is required either in body or via auth");
+
+            var mentorId = dto.MentorId;
+            Guid mentorGuid = Guid.Empty;
+            var isGuid = Guid.TryParse(mentorId, out mentorGuid);
+
+            var chat = _db.Chats.FirstOrDefault(c =>
+                (isGuid && ((c.User1Id == senderId && c.User2Id == mentorGuid) || (c.User1Id == mentorGuid && c.User2Id == senderId)))
+                || (!isGuid && c.ExternalMentorId == mentorId && (c.User1Id == senderId || c.User2Id == senderId)));
+
+            if (chat == null)
+            {
+                chat = new Chat
+                {
+                    User1Id = senderId,
+                    User2Id = isGuid ? mentorGuid : Guid.Empty,
+                    ExternalMentorId = isGuid ? null : mentorId,
+                    Name = isGuid ? $"chat_{senderId}_{mentorGuid}" : $"chat_{senderId}_ext_{mentorId}"
+                };
+                _db.Chats.Add(chat);
+                await _db.SaveChangesAsync();
+            }
+
+            var dtoOut = new ChatSummaryDto
+            {
+                Id = chat.Id,
+                Name = chat.Name,
+                User1Id = chat.User1Id,
+                User2Id = chat.User2Id,
+                ExternalMentorId = chat.ExternalMentorId
+            };
+
+            return CreatedAtAction(null, dtoOut);
+        }
+    }
+}

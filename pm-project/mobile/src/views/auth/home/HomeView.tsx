@@ -5,12 +5,18 @@ import {
   FlatList,
   StyleSheet,
   TextInput,
-  ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { getMentors } from "../../../viewmodels/home/homeViewModel";
+import { removeToken } from "../../../utils/storage";
+import { useMentorReviews } from "../../../contexts/MentorReviewsContext";
+import { useMentorChat } from "../../../contexts/MentorChatContext";
 
 export default function HomeView() {
+  const router = useRouter();
+  const { setSelectedMentor } = useMentorReviews();
+  const { setSelectedMentorForChat } = useMentorChat();
   const [mentors, setMentors] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -34,69 +40,88 @@ export default function HomeView() {
     return matchesSearch && matchesSubject;
   });
 
+  const handleLogout = async () => {
+    try {
+      await removeToken();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      router.replace("/auth/login");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Student Mentor Hub</Text>
-        <Text style={styles.subtitle}>Find your perfect tutor</Text>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <TextInput
-          placeholder="Search mentors or subjects..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.search}
-          placeholderTextColor="#94A3B8"
-        />
-      </View>
-
-      {/* Subject Filter */}
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          <TouchableOpacity
-            style={[
-              styles.filterTag,
-              !selectedSubject && styles.filterTagActive,
-            ]}
-            onPress={() => setSelectedSubject(null)}
-          >
-            <Text
-              style={[
-                styles.filterTagText,
-                !selectedSubject && styles.filterTagTextActive,
-              ]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-          {subjects.map((subject) => (
-            <TouchableOpacity
-              key={subject}
-              style={[
-                styles.filterTag,
-                selectedSubject === subject && styles.filterTagActive,
-              ]}
-              onPress={() => setSelectedSubject(subject)}
-            >
-              <Text
-                style={[
-                  styles.filterTagText,
-                  selectedSubject === subject && styles.filterTagTextActive,
-                ]}
-              >
-                {subject}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <>
+            <View style={styles.topBar}>
+              <View style={styles.topContent}>
+                <Text style={styles.greeting}>Welcome back</Text>
+                <Text style={styles.greetingSub}>
+                  Choose a mentor and get guidance in minutes.
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={[styles.statCard, styles.statCardPrimary]}>
+                <Text style={styles.statValue}>{mentors.length}</Text>
+                <Text style={styles.statLabel}>Mentors available</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>95%</Text>
+                <Text style={styles.statLabel}>Success rate</Text>
+              </View>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <TextInput
+                placeholder="Search mentors or subjects..."
+                value={search}
+                onChangeText={setSearch}
+                style={styles.search}
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
+
+            <View style={styles.filterContainer}>
+              <FlatList
+                horizontal
+                data={["All", ...subjects]}
+                keyExtractor={(item) => item}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterScroll}
+                renderItem={({ item }) => {
+                  const isActive = item === "All" ? !selectedSubject : selectedSubject === item;
+                  return (
+                    <TouchableOpacity
+                      style={[styles.filterTag, isActive && styles.filterTagActive]}
+                      onPress={() => setSelectedSubject(item === "All" ? null : item)}
+                    >
+                      <Text style={[styles.filterTagText, isActive && styles.filterTagTextActive]}>
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>🔍</Text>
+            <Text style={styles.emptyText}>No mentors found</Text>
+            <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -104,13 +129,20 @@ export default function HomeView() {
                 <Text style={styles.name}>{item.name}</Text>
                 <Text style={styles.subject}>{item.subject}</Text>
               </View>
-              <View style={styles.ratingBadge}>
-                <Text style={styles.ratingIcon}>⭐</Text>
-                <Text style={styles.rating}>{item.rating}</Text>
+              <View style={styles.headerRight}>
+                <View style={[styles.availabilityBadge, item.available ? styles.availableBadge : styles.unavailableBadge]}>
+                  <Text style={[styles.availabilityText, item.available ? styles.availableText : styles.unavailableText]}>
+                    {item.available ? "Available" : "Busy"}
+                  </Text>
+                </View>
+                <View style={styles.ratingBadge}>
+                  <Text style={styles.ratingIcon}>⭐</Text>
+                  <Text style={styles.rating}>{item.rating}</Text>
+                </View>
               </View>
             </View>
 
-            <View style={styles.statsRow}>
+            <View style={styles.statsRowSection}>
               <View style={styles.stat}>
                 <Text style={styles.statIcon}>👨‍🎓</Text>
                 <Text style={styles.statText}>{item.students} students</Text>
@@ -122,22 +154,34 @@ export default function HomeView() {
             </View>
 
             <View style={styles.priceRow}>
-              <Text style={styles.price}>{item.price}</Text>
-              <TouchableOpacity style={styles.bookButton}>
-                <Text style={styles.bookButtonText}>Book Now</Text>
+              <TouchableOpacity
+                style={[styles.bookButton, !item.available && styles.bookButtonDisabled]}
+                onPress={() => {
+                  if (item.available) {
+                    setSelectedMentorForChat(item);
+                    setSelectedMentor(item); // Also set for reviews
+                    router.push("/tabs/chat");
+                  }
+                }}
+                disabled={!item.available}
+              >
+                <Text style={[styles.bookButtonText, !item.available && styles.bookButtonTextDisabled]}>
+                  {item.available ? "Start Chatting" : "Unavailable"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.reviewsButton}
+                onPress={() => {
+                  setSelectedMentor(item);
+                  router.push("/tabs/reviews");
+                }}
+              >
+                <Text style={styles.reviewsButtonText}>View Reviews</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       />
-
-      {filtered.length === 0 && (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🔍</Text>
-          <Text style={styles.emptyText}>No mentors found</Text>
-          <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -145,59 +189,118 @@ export default function HomeView() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#EEF2FF",
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+  content: {
+    paddingBottom: 24,
   },
-  title: {
+  topBar: {
+    marginHorizontal: 20,
+    marginTop: 18,
+    marginBottom: 18,
+    padding: 22,
+    borderRadius: 24,
+    backgroundColor: "#2563EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  topContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  greeting: {
+    color: "#FFFFFF",
     fontSize: 28,
     fontWeight: "bold",
-    color: "#1E3A8A",
+    marginBottom: 8,
+  },
+  greetingSub: {
+    color: "#DBEAFE",
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  logoutButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
+  },
+  logoutButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 18,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
+    padding: 16,
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  statCardPrimary: {
+    backgroundColor: "#2563EB",
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1E293B",
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
+  statLabel: {
+    fontSize: 12,
     color: "#64748B",
+    fontWeight: "600",
   },
   searchContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    marginBottom: 14,
   },
   search: {
-    backgroundColor: "#F1F5F9",
-    padding: 12,
-    borderRadius: 10,
-    fontSize: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    fontSize: 15,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    color: "#1E293B",
+    color: "#0F172A",
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
   },
   filterContainer: {
-    paddingVertical: 12,
-    paddingHorizontal: 0,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    marginBottom: 10,
   },
   filterScroll: {
-    paddingHorizontal: 20,
+    paddingLeft: 20,
     paddingRight: 10,
   },
   filterTag: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    marginRight: 8,
+    marginRight: 10,
   },
   filterTagActive: {
     backgroundColor: "#2563EB",
@@ -205,25 +308,23 @@ const styles = StyleSheet.create({
   },
   filterTagText: {
     fontSize: 13,
-    color: "#64748B",
+    color: "#475569",
     fontWeight: "600",
   },
   filterTagTextActive: {
-    color: "#fff",
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    color: "#FFFFFF",
   },
   card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 24,
+    marginHorizontal: 20,
+    marginBottom: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
@@ -231,85 +332,128 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   mentorInfo: {
     flex: 1,
   },
   name: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1E3A8A",
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 6,
   },
   subject: {
     fontSize: 14,
     color: "#2563EB",
-    fontWeight: "600",
+    fontWeight: "700",
   },
-  ratingBadge: {
-    backgroundColor: "#FEF08A",
+  headerRight: {
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  availabilityBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 14,
+    alignSelf: "flex-start",
+  },
+  availableBadge: {
+    backgroundColor: "#DCFCE7",
+  },
+  unavailableBadge: {
+    backgroundColor: "#FEF3C7",
+  },
+  availabilityText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  availableText: {
+    color: "#166534",
+  },
+  unavailableText: {
+    color: "#92400E",
+  },
+  ratingBadge: {
+    backgroundColor: "#FCE7A9",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 16,
     alignItems: "center",
     flexDirection: "row",
-    gap: 4,
   },
   ratingIcon: {
     fontSize: 14,
   },
   rating: {
     fontSize: 13,
-    fontWeight: "bold",
-    color: "#854D0E",
+    fontWeight: "800",
+    color: "#92400E",
+    marginLeft: 6,
   },
-  statsRow: {
+  statsRowSection: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   stat: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
   },
   statIcon: {
     fontSize: 16,
+    marginRight: 8,
   },
   statText: {
     fontSize: 12,
     color: "#64748B",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   priceRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-    paddingTop: 12,
-  },
-  price: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#2563EB",
   },
   bookButton: {
     backgroundColor: "#2563EB",
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    flex: 1,
+    marginRight: 8,
+  },
+  bookButtonDisabled: {
+    backgroundColor: "#E5E7EB",
   },
   bookButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: "#FFFFFF",
+    fontWeight: "800",
     fontSize: 13,
+    textAlign: "center",
+  },
+  bookButtonTextDisabled: {
+    color: "#9CA3AF",
+  },
+  reviewsButton: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flex: 1,
+    marginLeft: 8,
+  },
+  reviewsButtonText: {
+    color: "#475569",
+    fontWeight: "700",
+    fontSize: 13,
+    textAlign: "center",
   },
   emptyState: {
     alignItems: "center",
@@ -329,5 +473,6 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: "#64748B",
+    textAlign: "center",
   },
 });

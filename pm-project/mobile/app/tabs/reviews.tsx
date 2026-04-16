@@ -1,9 +1,13 @@
-import HomeView from "../../src/views/auth/home/HomeView";
+import ReviewsView from "../../src/views/reviews/ReviewsView";
+import { useMentorReviews } from "../../src/contexts/MentorReviewsContext";
+import { useMentorChat } from "../../src/contexts/MentorChatContext";
 import { useEffect, useState } from "react";
-import { useRouter } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
+import { useRouter } from "expo-router";
 
-export default function Home() {
+export default function ReviewsScreen() {
+  const { selectedMentor } = useMentorReviews();
+  const { selectedMentorForChat } = useMentorChat();
   const router = useRouter();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
@@ -16,10 +20,8 @@ export default function Home() {
         router.replace("/auth/login");
         return;
       }
-
       setAuthorized(true);
     };
-
     checkAuth();
   }, [router]);
 
@@ -33,5 +35,8 @@ export default function Home() {
 
   if (!authorized) return null;
 
-  return <HomeView />;
+  // Show reviews for the mentor being chatted with, or the mentor selected for reviews
+  const mentorToShow = selectedMentorForChat || selectedMentor;
+
+  return <ReviewsView mentor={mentorToShow} />;
 }

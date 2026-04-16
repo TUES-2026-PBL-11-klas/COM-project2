@@ -1,9 +1,9 @@
-import HomeView from "../../src/views/auth/home/HomeView";
+import ChatView from "../../src/views/chat/ChatView";
 import { useEffect, useState } from "react";
-import { useRouter } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
+import { useRouter } from "expo-router";
 
-export default function Home() {
+export default function ChatScreen() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
@@ -16,7 +16,6 @@ export default function Home() {
         router.replace("/auth/login");
         return;
       }
-
       setAuthorized(true);
     };
 
@@ -33,5 +32,5 @@ export default function Home() {
 
   if (!authorized) return null;
 
-  return <HomeView />;
+  return <ChatView />;
 }
