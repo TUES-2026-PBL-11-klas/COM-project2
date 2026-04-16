@@ -7,6 +7,7 @@ const iconMap: Record<string, string> = {
   index: "home",
   chat: "chatbubble-ellipses",
   reviews: "star",
+  account: "person",
 };
 
 export default function TabsLayout() {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,10 +7,15 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+import { API_URL } from "../../constants/api";
+import eventBus from "../../utils/eventBus";
+import { getToken, getUserId } from "../../utils/storage";
+import reviewCache from "../../utils/reviewCache";
 
 interface Review {
   id: string;
   name: string;
+  reviewerId?: string;
   rating: number;
   comment: string;
   date: string;
@@ -28,10 +33,14 @@ interface ReviewsViewProps {
   mentor?: Mentor | null;
 }
 
-export default function ReviewsView({ mentor }: ReviewsViewProps) {
+export default function ReviewsView(props: ReviewsViewProps) {
+  const { mentor } = props || {};
   const [reviews, setReviews] = useState<Review[]>(mentor?.reviews || []);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   const averageScore = reviews.length > 0
     ? (reviews.reduce((total, review) => total + review.rating, 0) / reviews.length).toFixed(1)
@@ -55,13 +64,118 @@ export default function ReviewsView({ mentor }: ReviewsViewProps) {
       }),
     };
 
-    // Add the new review to the local state
-    setReviews(prevReviews => [newReview, ...prevReviews]);
+    // prevent duplicate locally
+    if (hasReviewed) return;
 
-    // Reset the form
+    // optimistic UI
+    setReviews(prevReviews => [newReview, ...prevReviews]);
+    setHasReviewed(true);
     setRating(5);
     setComment("");
+
+    (async () => {
+      try {
+        const token = await getToken();
+        const userId = await getUserId();
+        const body: any = {
+          reviewedId: mentor?.id,
+          rating,
+          content: trimmed,
+        };
+        if (userId) body.reviewerId = userId;
+        if (currentUserName) body.reviewerName = currentUserName;
+
+        const res = await fetch(`${API_URL}/reviews`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          console.warn("Failed to submit review", await res.text());
+          // rollback optimistic UI
+          setReviews(prev => prev.filter(r => r.id !== newReview.id));
+          setHasReviewed(false);
+        } else {
+          const saved = await res.json();
+          // replace temp id with server id
+          setReviews(prev => prev.map(r => r.id === newReview.id ? { ...r, id: saved.id } : r));
+        }
+      } catch (err) {
+        console.warn("Submit review error", err);
+      }
+    })();
   };
+
+  useEffect(() => {
+    let unsub: any;
+    const cacheKey = mentor ? `reviews:${mentor.id}` : `reviews:mine`;
+    const cached = reviewCache.get(cacheKey);
+    if (cached) setReviews(cached);
+
+    const load = async () => {
+      try {
+        const token = await getToken();
+        const uid = await getUserId();
+        setCurrentUserId(uid);
+        // try fetch me to get username when token present
+        if (token) {
+          const r = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+          if (r.ok) {
+            const j = await r.json();
+            setCurrentUserName(j.username || null);
+            if (!uid && j.id) setCurrentUserId(j.id);
+          }
+        }
+
+        if (mentor) {
+          const res = await fetch(`${API_URL}/reviews/${mentor.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            const mapped = data.map((d: any) => ({ id: d.id, name: (d.reviewerId && uid && String(d.reviewerId) === String(uid)) ? 'You' : d.reviewerName, rating: d.rating, comment: d.content, date: new Date(d.createdAt).toLocaleDateString(), reviewerId: d.reviewerId }));
+            setReviews(mapped);
+            reviewCache.set(cacheKey, mapped);
+            if (uid) setHasReviewed(data.some((d: any) => String(d.reviewerId) === String(uid)));
+          }
+        } else {
+          // reviews tab: fetch reviews for current user
+          if (token) {
+            const res = await fetch(`${API_URL}/reviews/mine`, { headers: { Authorization: `Bearer ${token}` } });
+            if (res.ok) {
+              const data = await res.json();
+              const mapped = data.map((d: any) => ({ id: d.id, name: d.reviewerName, rating: d.rating, comment: d.content, date: new Date(d.createdAt).toLocaleDateString(), reviewerId: d.reviewerId }));
+              setReviews(mapped);
+              reviewCache.set(cacheKey, mapped);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Load reviews error", err);
+      }
+    };
+
+    load();
+
+    // subscribe to updates
+    unsub = eventBus.on('reviewUpdated', (payload: any) => {
+      if (!payload) return;
+      const reviewedExternalId = payload.reviewedExternalId;
+      const reviewedUserId = payload.reviewedUserId;
+      if (mentor) {
+        if (reviewedExternalId === mentor.id || String(reviewedUserId) === String(mentor.id)) {
+          load();
+        }
+      } else {
+        // if this is the 'mine' tab, reload when any review about current user changed
+        if (reviewedUserId && String(reviewedUserId) === String(currentUserId)) load();
+      }
+    });
+
+    return () => { if (unsub) unsub(); };
+  }, [mentor, currentUserId]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -100,7 +214,14 @@ export default function ReviewsView({ mentor }: ReviewsViewProps) {
         )}
       </View>
 
-      <View style={styles.formCard}>
+        {!mentor && (
+          <View style={styles.chooseMentorBox}>
+            <Text style={styles.chooseMentorText}>Choose a mentor to review</Text>
+          </View>
+        )}
+
+        {mentor && !hasReviewed && (
+        <View style={styles.formCard}>
         <Text style={styles.formLabel}>Your Rating</Text>
         <View style={styles.ratingRow}>
           {[1, 2, 3, 4, 5].map((value) => (
@@ -126,10 +247,15 @@ export default function ReviewsView({ mentor }: ReviewsViewProps) {
           multiline
         />
 
-        <TouchableOpacity style={styles.submitButton} onPress={addReview}>
-          <Text style={styles.submitButtonText}>Submit Review</Text>
+        <TouchableOpacity
+          style={[styles.submitButton, hasReviewed && styles.disabledButton]}
+          onPress={addReview}
+          disabled={hasReviewed}
+        >
+          <Text style={styles.submitButtonText}>{hasReviewed ? "Already Reviewed" : "Submit Review"}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       {reviews.length > 0 ? (
         <>
@@ -158,10 +284,12 @@ export default function ReviewsView({ mentor }: ReviewsViewProps) {
       ) : (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📝</Text>
-          <Text style={styles.emptyText}>No reviews yet</Text>
-          <Text style={styles.emptySubtext}>
-            {mentor ? `Be the first to review ${mentor.name}!` : "Reviews will appear here once students share their experiences."}
-          </Text>
+          <Text style={styles.emptyText}>{mentor ? "No reviews yet" : "Choose a mentor to review"}</Text>
+          {mentor ? (
+            <Text style={styles.emptySubtext}>{`Be the first to review ${mentor.name}!`}</Text>
+          ) : (
+            <Text style={styles.emptySubtext}>Tap a mentor on the main page to view or write reviews.</Text>
+          )}
         </View>
       )}
     </ScrollView>
@@ -175,6 +303,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingTop: 48,
     paddingBottom: 32,
   },
   mentorHeader: {
@@ -310,6 +439,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
   },
+  disabledButton: {
+    backgroundColor: "#94A3B8",
+    opacity: 0.8,
+  },
   submitButtonText: {
     color: "#ffffff",
     fontWeight: "bold",
@@ -388,5 +521,18 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
     lineHeight: 20,
+  },
+  chooseMentorBox: {
+    backgroundColor: "#fff",
+    padding: 18,
+    borderRadius: 18,
+    marginTop: 18,
+    marginBottom: 18,
+    alignItems: "center",
+  },
+  chooseMentorText: {
+    color: "#1E3A8A",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

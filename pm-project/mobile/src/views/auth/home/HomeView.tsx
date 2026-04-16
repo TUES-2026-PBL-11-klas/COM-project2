@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { getMentors } from "../../../viewmodels/home/homeViewModel";
-import { removeToken } from "../../../utils/storage";
 import { useMentorReviews } from "../../../contexts/MentorReviewsContext";
 import { useMentorChat } from "../../../contexts/MentorChatContext";
 
@@ -40,15 +39,7 @@ export default function HomeView() {
     return matchesSearch && matchesSubject;
   });
 
-  const handleLogout = async () => {
-    try {
-      await removeToken();
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      router.replace("/auth/login");
-    }
-  };
+  // logout moved to Account tab
 
   return (
     <View style={styles.container}>
@@ -65,9 +56,7 @@ export default function HomeView() {
                   Choose a mentor and get guidance in minutes.
                 </Text>
               </View>
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutButtonText}>Logout</Text>
-              </TouchableOpacity>
+              {/* logout moved to Account tab */}
             </View>
 
             <View style={styles.statsRow}>
@@ -192,6 +181,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
   },
   content: {
+    paddingTop: 48,
     paddingBottom: 24,
   },
   topBar: {
