@@ -1,7 +1,7 @@
 export async function getMentors() {
   return [
     {
-      id: "1",
+      id: "local-1",
       name: "Ivan Petrov",
       subject: "Math",
       rating: 4.9,
@@ -26,7 +26,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "2",
+      id: "local-2",
       name: "Maria Dimitrova",
       subject: "English",
       rating: 4.8,
@@ -51,7 +51,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "3",
+      id: "local-3",
       name: "Alex Johnson",
       subject: "Physics",
       rating: 4.7,
@@ -69,7 +69,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "4",
+      id: "local-4",
       name: "Sofia Rodriguez",
       subject: "Chemistry",
       rating: 4.9,
@@ -94,7 +94,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "5",
+      id: "local-5",
       name: "Michael Chen",
       subject: "Programming",
       rating: 4.8,
@@ -126,7 +126,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "6",
+      id: "local-6",
       name: "Emma Watson",
       subject: "History",
       rating: 4.6,
@@ -144,7 +144,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "7",
+      id: "local-7",
       name: "David Kumar",
       subject: "Math",
       rating: 4.8,
@@ -169,7 +169,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "8",
+      id: "local-8",
       name: "Lisa Anderson",
       subject: "Biology",
       rating: 4.7,
@@ -187,7 +187,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "9",
+      id: "local-9",
       name: "James Wilson",
       subject: "English",
       rating: 4.9,
@@ -212,7 +212,7 @@ export async function getMentors() {
       ],
     },
     {
-      id: "10",
+      id: "local-10",
       name: "Nina Patel",
       subject: "Chemistry",
       rating: 4.7,

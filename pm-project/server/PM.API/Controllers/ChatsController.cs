@@ -27,20 +27,51 @@ namespace PM.API.Controllers
             var user = _db.Users.FirstOrDefault(u => u.Username == username);
             if (user == null) return Unauthorized();
 
-            var chats = _db.Chats
-                .Where(c => c.User1Id == user.Id || c.User2Id == user.Id)
-                .Select(c => new ChatSummaryDto
+            var chatEntities = _db.Chats.Where(c => c.User1Id == user.Id || c.User2Id == user.Id).ToList();
+
+            var chats = chatEntities.Select(c =>
+            {
+                // resolve a friendly display name
+                string displayName = c.Name ?? string.Empty;
+
+                if (!string.IsNullOrWhiteSpace(c.ExternalMentorId))
+                {
+                    // try resolve external mentor id to a user
+                    var owner = _db.Users.FirstOrDefault(u => u.Id.ToString() == c.ExternalMentorId || u.Username == c.ExternalMentorId);
+                    if (owner != null) displayName = owner.Username;
+                    else
+                    {
+                        var mp = _db.MentorProfiles.FirstOrDefault(m => m.Id.ToString() == c.ExternalMentorId || m.UserId.ToString() == c.ExternalMentorId);
+                        if (mp != null)
+                        {
+                            var owner2 = _db.Users.FirstOrDefault(u => u.Id == mp.UserId);
+                            if (owner2 != null) displayName = owner2.Username;
+                        }
+                    }
+                }
+                else
+                {
+                    // if no external id, prefer the other participant's username
+                    var otherId = c.User1Id == user.Id ? c.User2Id : c.User1Id;
+                    if (otherId != Guid.Empty)
+                    {
+                        var other = _db.Users.FirstOrDefault(u => u.Id == otherId);
+                        if (other != null) displayName = other.Username;
+                    }
+                }
+
+                return new ChatSummaryDto
                 {
                     Id = c.Id,
-                    Name = c.Name,
+                    Name = displayName,
                     User1Id = c.User1Id,
                     User2Id = c.User2Id,
                     ExternalMentorId = c.ExternalMentorId,
                     LastMessageContent = c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.Content).FirstOrDefault(),
                     LastMessageAt = c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.CreatedAt).FirstOrDefault(),
                     LastMessageSenderId = c.Messages.OrderByDescending(m => m.CreatedAt).Select(m => (Guid?)m.SenderId).FirstOrDefault()
-                })
-                .ToList();
+                };
+            }).ToList();
 
             return Ok(chats);
         }
@@ -70,7 +101,11 @@ namespace PM.API.Controllers
             var isGuid = Guid.TryParse(mentorId, out mentorGuid);
 
             var chat = _db.Chats.FirstOrDefault(c =>
+                // exact two-user chat (either order)
                 (isGuid && ((c.User1Id == senderId && c.User2Id == mentorGuid) || (c.User1Id == mentorGuid && c.User2Id == senderId)))
+                // public mentor chat where mentor created a public entry (other slot empty)
+                || (isGuid && ((c.User1Id == mentorGuid && c.User2Id == Guid.Empty) || (c.User2Id == mentorGuid && c.User1Id == Guid.Empty)))
+                // external mentor id match for non-guid mentors
                 || (!isGuid && c.ExternalMentorId == mentorId && (c.User1Id == senderId || c.User2Id == senderId)));
 
             if (chat == null)
@@ -95,7 +130,7 @@ namespace PM.API.Controllers
                 ExternalMentorId = chat.ExternalMentorId
             };
 
-            return CreatedAtAction(null, dtoOut);
+            return CreatedAtAction(nameof(GetMyChats), dtoOut);
         }
     }
 }

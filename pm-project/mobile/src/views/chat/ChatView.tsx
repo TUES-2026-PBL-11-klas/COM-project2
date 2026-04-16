@@ -44,6 +44,12 @@ export default function ChatView() {
       const body: any = { mentorId };
       if (senderId) body.senderId = senderId;
 
+      // prevent creating a chat with yourself
+      if (String(mentorId) && senderId && String(mentorId) === String(senderId)) {
+        console.warn('Cannot create a chat with yourself');
+        return;
+      }
+
       const res = await fetch(`${API_URL}/chats`, {
         method: "POST",
         headers: {
@@ -92,7 +98,14 @@ export default function ChatView() {
   const resolveChatName = (chat: any) => {
     if (!chat) return "Mentor";
     // prefer explicit name if it looks human
-    if (chat.name && !chat.name.startsWith("chat_")) return chat.name;
+    if (chat.name && !chat.name.startsWith("chat_")) {
+      // if name is a numeric id (e.g. "1"), try resolve from local mentor list
+      if (/^\d+$/.test(String(chat.name))) {
+        const found = mentors.find((x) => String(x.id) === String(chat.name));
+        if (found) return found.name;
+      }
+      return chat.name;
+    }
 
     const externalId = chat.externalMentorId || chat.user2Id || chat.user1Id || chat.id;
     const found = mentors.find((x) => x.id === String(externalId) || String(x.id) === String(externalId));

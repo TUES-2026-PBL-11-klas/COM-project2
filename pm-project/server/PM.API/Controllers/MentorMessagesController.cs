@@ -65,7 +65,7 @@ namespace PM.API.Controllers
                 ChatId = message.ChatId
             };
 
-            return CreatedAtAction(null, new { id = outMsg.Id }, outMsg);
+            return CreatedAtAction(nameof(GetMessages), new { mentorId = mentorId, senderId = senderId.ToString() }, outMsg);
         }
 
         [HttpGet("{mentorId}/messages")]

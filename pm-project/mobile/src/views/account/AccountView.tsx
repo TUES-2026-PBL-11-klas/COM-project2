@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import { API_URL } from "../../constants/api";
+import { getMentors } from "../../viewmodels/home/homeViewModel";
 import { getToken, getUserId, removeToken } from "../../utils/storage";
 import reviewCache from "../../utils/reviewCache";
 import eventBus from "../../utils/eventBus";
@@ -24,6 +25,7 @@ export default function AccountView() {
   const [written, setWritten] = useState<OutReview[]>([]);
   const [about, setAbout] = useState<OutReview[]>([]);
   const [hasToken, setHasToken] = useState(false);
+  const [isMentor, setIsMentor] = useState(false);
   const [fetchAuthError, setFetchAuthError] = useState<string | null>(null);
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export default function AccountView() {
           if (r.ok) {
             const j = await r.json();
             setUsername(j.username || null);
+            setIsMentor(Array.isArray(j.roles) ? j.roles.includes('Mentor') || j.roles.includes('mentor') : false);
             if (!uid && j.id) setUserId(j.id);
           }
         }
@@ -56,8 +59,28 @@ export default function AccountView() {
           const r2 = await fetch(`${API_URL}/reviews/authored`, { headers: { Authorization: `Bearer ${token}` } });
           if (r2.ok) {
             const data = await r2.json();
-            setWritten(data);
-            reviewCache.set(authoredCacheKey, data);
+            const resolved = await Promise.all(data.map(async (item: any) => {
+              if (!item.reviewedUserName && item.reviewedExternalId) {
+                try {
+                  const resp = await fetch(`${API_URL}/mentors/resolve/${item.reviewedExternalId}`);
+                  if (resp.ok) {
+                    const jr = await resp.json();
+                    item.reviewedUserName = jr.displayName ?? null;
+                  }
+                } catch (e) { /* ignore */ }
+                // fallback: try local mentor list (static client data) when resolver didn't find a name
+                if (!item.reviewedUserName) {
+                  try {
+                    const local = await getMentors();
+                    const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
+                    if (found) item.reviewedUserName = found.name;
+                  } catch (e) { }
+                }
+              }
+              return item;
+            }));
+              setWritten(resolved);
+              reviewCache.set(authoredCacheKey, resolved);
             setFetchAuthError(null);
           } else {
             setFetchAuthError(`Failed to load authored reviews: ${r2.status}`);
@@ -85,6 +108,92 @@ export default function AccountView() {
         console.warn("Account load error", err);
       }
     })();
+
+    // listen for mentorCreated events to update UI
+    const unsubMentor = eventBus.on('mentorCreated', (payload: any) => {
+      try {
+        if (!payload) return;
+        const createdUserId = payload.userId || payload.userId === 0 ? String(payload.userId) : null;
+        if (createdUserId && String(createdUserId) === String(userId)) {
+          setIsMentor(true);
+          // refresh authored reviews
+          (async () => {
+            const token = await getToken();
+            if (!token) return;
+            const r2 = await fetch(`${API_URL}/reviews/authored`, { headers: { Authorization: `Bearer ${token}` } });
+            if (r2.ok) {
+              const data = await r2.json();
+              const resolved = await Promise.all(data.map(async (item: any) => {
+                if (!item.reviewedUserName && item.reviewedExternalId) {
+                  try {
+                    const resp = await fetch(`${API_URL}/mentors/resolve/${item.reviewedExternalId}`);
+                    if (resp.ok) {
+                      const jr = await resp.json();
+                      item.reviewedUserName = jr.displayName ?? null;
+                    }
+                    if (!item.reviewedUserName) {
+                      try {
+                        const local = await getMentors();
+                        const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
+                        if (found) item.reviewedUserName = found.name;
+                      } catch (e) { }
+                    }
+                  } catch (e) { /* ignore */ }
+                }
+                return item;
+              }));
+              setWritten(resolved);
+              reviewCache.set('authored', resolved);
+            }
+          })();
+        }
+      } catch (e) { }
+    });
+
+    // listen for review updates to refresh lists immediately
+    const unsubReview = eventBus.on('reviewUpdated', async (payload: any) => {
+      try {
+        const token = await getToken();
+        const uid = await getUserId();
+
+        // refresh authored reviews
+        if (token) {
+          const r2 = await fetch(`${API_URL}/reviews/authored`, { headers: { Authorization: `Bearer ${token}` } });
+          if (r2.ok) {
+            const data = await r2.json();
+            const resolved = await Promise.all(data.map(async (item: any) => {
+              if (!item.reviewedUserName && item.reviewedExternalId) {
+                try {
+                  const resp = await fetch(`${API_URL}/mentors/resolve/${item.reviewedExternalId}`);
+                  if (resp.ok) {
+                    const jr = await resp.json();
+                    item.reviewedUserName = jr.displayName ?? null;
+                  }
+                } catch (e) { }
+                if (!item.reviewedUserName) {
+                  try {
+                    const local = await getMentors();
+                    const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
+                    if (found) item.reviewedUserName = found.name;
+                  } catch (e) { }
+                }
+              }
+              return item;
+            }));
+            setWritten(resolved);
+            reviewCache.set('authored', resolved);
+          }
+        }
+
+        // refresh reviews about me
+        if (uid) {
+          const r3 = await fetch(`${API_URL}/reviews/${uid}`);
+          if (r3.ok) setAbout(await r3.json());
+        }
+      } catch (e) { }
+    });
+
+    return () => { if (unsubMentor) unsubMentor(); if (unsubReview) unsubReview(); };
   }, []);
 
   const handleLogout = async () => {
@@ -108,6 +217,22 @@ export default function AccountView() {
       </View>
 
       <View style={styles.section}>
+          {!isMentor ? (
+            <View style={styles.mentorPromo}>
+              <Text style={styles.mentorPromoTitle}>Share your knowledge — become a mentor</Text>
+              <Text style={styles.mentorPromoText}>Help learners, get reviews, and open a chat for mentees to reach you.</Text>
+              <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                <TouchableOpacity style={styles.mentorButton} onPress={() => router.push('/mentor/create')}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Become a mentor</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.mentorPromoActive}>
+              <Text style={styles.mentorPromoTitle}>Thank you for being a mentor</Text>
+              <Text style={styles.mentorPromoText}>Your mentor profile is active — learners can message and review you.</Text>
+            </View>
+          )}
         <Text style={styles.sectionTitle}>Reviews I Wrote</Text>
         {written.length === 0 ? (
           fetchAuthError ? (
@@ -230,6 +355,21 @@ const styles = StyleSheet.create({
   name: { fontSize: 28, fontWeight: "700", color: "#FFFFFF", textAlign: 'left' },
   sub: { color: "#DBEAFE", marginTop: 6, fontSize: 15 },
   section: { marginTop: 8 },
+    mentorPromo: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+    },
+    mentorPromoActive: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+    },
+    mentorPromoTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+    mentorPromoText: { color: '#64748B', marginTop: 6 },
+    mentorButton: { backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12 },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
   empty: { color: "#64748B", fontStyle: "italic" },
   reviewCard: { backgroundColor: "#fff", padding: 14, borderRadius: 12, marginBottom: 10 },

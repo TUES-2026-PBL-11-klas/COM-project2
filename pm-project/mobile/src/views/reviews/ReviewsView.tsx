@@ -103,6 +103,8 @@ export default function ReviewsView(props: ReviewsViewProps) {
           const saved = await res.json();
           // replace temp id with server id
           setReviews(prev => prev.map(r => r.id === newReview.id ? { ...r, id: saved.id } : r));
+          // notify other views (Account) that a review was created
+          try { eventBus.emit('reviewUpdated', { reviewedExternalId: saved.reviewedExternalId, reviewedUserId: saved.reviewedUserId }); } catch {}
         }
       } catch (err) {
         console.warn("Submit review error", err);

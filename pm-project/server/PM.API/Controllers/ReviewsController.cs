@@ -60,7 +60,7 @@ namespace PM.API.Controllers
             _db.Reviews.Add(review);
             await _db.SaveChangesAsync();
 
-            return CreatedAtAction(null, new { id = review.Id }, new OutReviewDto
+            return CreatedAtAction(nameof(GetReviewsFor), new { reviewedId = dto.ReviewedId }, new OutReviewDto
             {
                 Id = review.Id,
                 ReviewerId = review.ReviewerId,
@@ -100,7 +100,7 @@ namespace PM.API.Controllers
                 ReviewerName = r.ReviewerName,
                 ReviewedUserId = r.ReviewedUserId,
                 ReviewedExternalId = r.ReviewedExternalId,
-                ReviewedUserName = r.ReviewedUserId.HasValue ? _db.Users.FirstOrDefault(u => u.Id == r.ReviewedUserId.Value).Username : null,
+                ReviewedUserName = r.ReviewedUserId.HasValue ? _db.Users.Where(u => u.Id == r.ReviewedUserId.Value).Select(u => u.Username).FirstOrDefault() : null,
                 Rating = r.Rating,
                 Content = r.Content,
                 CreatedAt = r.CreatedAt
@@ -127,7 +127,7 @@ namespace PM.API.Controllers
                     ReviewerName = r.ReviewerName,
                     ReviewedUserId = r.ReviewedUserId,
                     ReviewedExternalId = r.ReviewedExternalId,
-                    ReviewedUserName = r.ReviewedUserId.HasValue ? _db.Users.FirstOrDefault(u => u.Id == r.ReviewedUserId.Value).Username : null,
+                    ReviewedUserName = r.ReviewedUserId.HasValue ? _db.Users.Where(u => u.Id == r.ReviewedUserId.Value).Select(u => u.Username).FirstOrDefault() : null,
                     Rating = r.Rating,
                     Content = r.Content,
                     CreatedAt = r.CreatedAt

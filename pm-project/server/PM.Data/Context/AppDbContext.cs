@@ -15,6 +15,7 @@ namespace PM.Data.Context
         public DbSet<Chat> Chats { get; set; }
         public DbSet<Message> Messages { get; set; }
         public DbSet<Review> Reviews { get; set; }
+        public DbSet<MentorProfile> MentorProfiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

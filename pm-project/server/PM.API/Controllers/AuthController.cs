@@ -74,7 +74,9 @@ namespace PM.API.Controllers
             if (user == null)
                 return NotFound();
 
-            return Ok(new { Username = name, Id = user.Id });
+            var roles = user.Roles?.Select(r => r.Name).ToList() ?? new List<string>();
+
+            return Ok(new { Username = name, Id = user.Id, Roles = roles });
         }
         // tva za test prosto
     }
