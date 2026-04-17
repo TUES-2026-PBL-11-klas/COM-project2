@@ -1,9 +1,17 @@
 // Mock authentication service for development/demo purposes
 // This allows the app to work without a backend server
 
-const MOCK_USERS = [
-  { username: "demo", password: "demo123", email: "demo@example.com" },
-  { username: "student", password: "student123", email: "student@example.com" },
+type MockUser = {
+  username: string;
+  password: string;
+  email: string;
+  role: "student" | "mentor";
+};
+
+const MOCK_USERS: MockUser[] = [
+  { username: "demo", password: "demo123", email: "demo@example.com", role: "student" },
+  { username: "student", password: "student123", email: "student@example.com", role: "student" },
+  { username: "mentor", password: "mentor123", email: "mentor@example.com", role: "mentor" },
 ];
 
 export async function mockLogin(username: string, password: string) {
@@ -20,13 +28,14 @@ export async function mockLogin(username: string, password: string) {
 
   // Return a mock token
   const token = `mock_token_${username}_${Date.now()}`;
-  return { token, username, email: user.email };
+  return { token, username, email: user.email, role: user.role };
 }
 
 export async function mockRegister(
   username: string,
   email: string,
-  password: string
+  password: string,
+  role: "student" | "mentor"
 ) {
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -37,11 +46,11 @@ export async function mockRegister(
   }
 
   // Add new user to mock database
-  MOCK_USERS.push({ username, email, password });
+  MOCK_USERS.push({ username, email, password, role });
 
   // Return a mock token
   const token = `mock_token_${username}_${Date.now()}`;
-  return { token, username, email };
+  return { token, username, email, role };
 }
 
 export async function mockGetMe(token: string) {
@@ -61,5 +70,5 @@ export async function mockGetMe(token: string) {
     throw new Error("User not found");
   }
 
-  return { username, email: user.email };
+  return { username, email: user.email, role: user.role };
 }

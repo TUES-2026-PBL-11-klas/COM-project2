@@ -7,13 +7,14 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { registerVM }from "../../viewmodels/auth/authViewModel";
+import { registerVM } from "../../viewmodels/auth/authViewModel";
 import { useRouter } from "expo-router";
 
 export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"student" | "mentor">("student");
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const res = await registerVM(username, email, password);
+      const res = await registerVM(username, email, password, role);
 
       if (res.token) {
         setUsername("");
@@ -48,6 +49,27 @@ export default function Register() {
       <View style={styles.card}>
         <Text style={styles.title}>Create Account</Text>
         <Text style={styles.subtitle}>Register a new account</Text>
+
+        <View style={styles.roleSelector}>
+          <TouchableOpacity
+            style={[styles.roleButton, role === "student" && styles.roleButtonActive]}
+            onPress={() => setRole("student")}
+            disabled={loading}
+          >
+            <Text style={[styles.roleButtonText, role === "student" && styles.roleButtonTextActive]}>
+              Student
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleButton, role === "mentor" && styles.roleButtonActive]}
+            onPress={() => setRole("mentor")}
+            disabled={loading}
+          >
+            <Text style={[styles.roleButtonText, role === "mentor" && styles.roleButtonTextActive]}>
+              Mentor
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <TextInput
           placeholder="Username"
@@ -143,6 +165,32 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  roleSelector: {
+    flexDirection: "row",
+    marginBottom: 16,
+    justifyContent: "space-between",
+  },
+  roleButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginRight: 8,
+    backgroundColor: "#F9FAFB",
+  },
+  roleButtonActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#2563EB",
+  },
+  roleButtonText: {
+    color: "#374151",
+    fontWeight: "600",
+  },
+  roleButtonTextActive: {
+    color: "#FFFFFF",
   },
   link: {
     marginTop: 15,

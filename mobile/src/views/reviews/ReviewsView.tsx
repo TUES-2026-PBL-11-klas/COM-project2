@@ -20,8 +20,8 @@ interface Mentor {
   id: string;
   name: string;
   subject: string;
-  rating: number;
-  reviews: Review[];
+  rating?: number;
+  reviews?: Review[];
 }
 
 interface ReviewsViewProps {

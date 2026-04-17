@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   View,
   Text,
+  Image,
   FlatList,
   StyleSheet,
   TextInput,
@@ -9,9 +10,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { getMentors } from "../../../viewmodels/home/homeViewModel";
-import { removeToken } from "../../../utils/storage";
+import { getRole, removeToken } from "../../../utils/storage";
 import { useMentorReviews } from "../../../contexts/MentorReviewsContext";
 import { useMentorChat } from "../../../contexts/MentorChatContext";
+import MentorHomeView from "./MentorHomeView";
 
 export default function HomeView() {
   const router = useRouter();
@@ -20,15 +22,20 @@ export default function HomeView() {
   const [mentors, setMentors] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [role, setRole] = useState<"student" | "mentor">("student");
 
   useEffect(() => {
-    load();
-  }, []);
+    const initialize = async () => {
+      const storedRole = await getRole();
+      if (storedRole === "mentor") {
+        setRole("mentor");
+      }
+      const data = await getMentors();
+      setMentors(data);
+    };
 
-  const load = async () => {
-    const data = await getMentors();
-    setMentors(data);
-  };
+    initialize();
+  }, []);
 
   const subjects = Array.from(new Set(mentors.map((m) => m.subject)));
 
@@ -49,6 +56,13 @@ export default function HomeView() {
       router.replace("/auth/login");
     }
   };
+
+  if (role === "mentor") {
+    return <MentorHomeView onLogout={handleLogout} onChat={(student) => {
+      setSelectedMentorForChat(student);
+      router.push("/tabs/chat");
+    }} />;
+  }
 
   return (
     <View style={styles.container}>
@@ -125,9 +139,12 @@ export default function HomeView() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <View style={styles.mentorInfo}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.subject}>{item.subject}</Text>
+              <View style={styles.mentorInfoRow}>
+                <Image source={{ uri: item.avatar }} style={styles.mentorAvatar} />
+                <View style={styles.mentorText}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.subject}>{item.subject}</Text>
+                </View>
               </View>
               <View style={styles.headerRight}>
                 <View style={[styles.availabilityBadge, item.available ? styles.availableBadge : styles.unavailableBadge]}>
@@ -333,6 +350,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 16,
+  },
+  mentorInfoRow: {
+    flexDirection: "row",
+    flex: 1,
+    alignItems: "center",
+  },
+  mentorAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    backgroundColor: "#E2E8F0",
+  },
+  mentorText: {
+    flex: 1,
   },
   mentorInfo: {
     flex: 1,

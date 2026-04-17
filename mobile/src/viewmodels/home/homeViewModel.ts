@@ -8,6 +8,7 @@ export async function getMentors() {
       experience: "10+ years",
       students: 245,
       available: true,
+      avatar: "https://ui-avatars.com/api/?name=Ivan+Petrov&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r1",
@@ -33,6 +34,7 @@ export async function getMentors() {
       experience: "8 years",
       students: 189,
       available: true,
+      avatar: "https://ui-avatars.com/api/?name=Maria+Dimitrova&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r3",
@@ -58,6 +60,7 @@ export async function getMentors() {
       experience: "7 years",
       students: 156,
       available: false,
+      avatar: "https://ui-avatars.com/api/?name=Alex+Johnson&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r5",
@@ -76,6 +79,7 @@ export async function getMentors() {
       experience: "9 years",
       students: 212,
       available: true,
+      avatar: "https://ui-avatars.com/api/?name=Sofia+Rodriguez&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r6",
@@ -101,6 +105,7 @@ export async function getMentors() {
       experience: "6 years",
       students: 324,
       available: true,
+      avatar: "https://ui-avatars.com/api/?name=Michael+Chen&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r8",
@@ -133,6 +138,7 @@ export async function getMentors() {
       experience: "5 years",
       students: 98,
       available: false,
+      avatar: "https://ui-avatars.com/api/?name=Emma+Watson&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r11",
@@ -151,6 +157,7 @@ export async function getMentors() {
       experience: "12 years",
       students: 278,
       available: true,
+      avatar: "https://ui-avatars.com/api/?name=David+Kumar&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r12",
@@ -176,6 +183,7 @@ export async function getMentors() {
       experience: "8 years",
       students: 167,
       available: true,
+      avatar: "https://ui-avatars.com/api/?name=Lisa+Anderson&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r14",
@@ -194,6 +202,7 @@ export async function getMentors() {
       experience: "11 years",
       students: 301,
       available: false,
+      avatar: "https://ui-avatars.com/api/?name=James+Wilson&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r15",
@@ -219,6 +228,7 @@ export async function getMentors() {
       experience: "6 years",
       students: 134,
       available: true,
+      avatar: "https://ui-avatars.com/api/?name=Nina+Patel&background=2563EB&color=FFFFFF&rounded=true&size=128",
       reviews: [
         {
           id: "r17",

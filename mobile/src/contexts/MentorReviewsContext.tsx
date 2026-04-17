@@ -1,16 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-interface Mentor {
-  id: string;
-  name: string;
-  subject: string;
-  rating: number;
-  experience: string;
-  students: number;
-  available: boolean;
-  reviews: Review[];
-}
-
 interface Review {
   id: string;
   name: string;
@@ -19,15 +8,26 @@ interface Review {
   date: string;
 }
 
+interface Profile {
+  id: string;
+  name: string;
+  subject: string;
+  rating?: number;
+  experience?: string;
+  students?: number;
+  available?: boolean;
+  reviews?: Review[];
+}
+
 interface MentorReviewsContextType {
-  selectedMentor: Mentor | null;
-  setSelectedMentor: (mentor: Mentor | null) => void;
+  selectedMentor: Profile | null;
+  setSelectedMentor: (mentor: Profile | null) => void;
 }
 
 const MentorReviewsContext = createContext<MentorReviewsContextType | undefined>(undefined);
 
 export const MentorReviewsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [selectedMentor, setSelectedMentor] = useState<Mentor | null>(null);
+  const [selectedMentor, setSelectedMentor] = useState<Profile | null>(null);
 
   return (
     <MentorReviewsContext.Provider value={{ selectedMentor, setSelectedMentor }}>
