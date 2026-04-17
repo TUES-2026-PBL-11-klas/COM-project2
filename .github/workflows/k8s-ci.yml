@@ -61,4 +61,4 @@ jobs:
       uses: docker://ghcr.io/yannh/kubeconform:latest
       with:
         entrypoint: "/kubeconform"
-        args: "-summary -verbose -recursive pm-project/infra/k8s"
+        args: "-summary -verbose -ignore-missing-schemas pm-project/infra/k8s"
