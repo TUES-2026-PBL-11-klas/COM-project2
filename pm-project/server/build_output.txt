@@ -1,0 +1,32 @@
+  Determining projects to restore...
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Data/PM.Data.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PMProject.slnx]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1904: Package 'Microsoft.AspNetCore.Server.Kestrel.Core' 2.3.0 has a known critical severity vulnerability, https://github.com/advisories/GHSA-5rrx-jjjq-q2r5 [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PMProject.slnx]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PMProject.slnx]
+  All projects are up-to-date for restore.
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1904: Package 'Microsoft.AspNetCore.Server.Kestrel.Core' 2.3.0 has a known critical severity vulnerability, https://github.com/advisories/GHSA-5rrx-jjjq-q2r5
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Data/PM.Data.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr
+  PM.Data -> /home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Data/bin/Debug/net10.0/PM.Data.dll
+  PM.Tests -> /home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Tests/bin/Debug/net10.0/PM.Tests.dll
+  PM.Core -> /home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/bin/Debug/net10.0/PM.Core.dll
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Controllers/AuthController.cs(37,17): error CS0117: 'RegisterResponseDto' does not contain a definition for 'Email' [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Controllers/AuthController.cs(37,30): error CS1061: 'RegisterResponseDto' does not contain a definition for 'Email' and no accessible extension method 'Email' accepting a first argument of type 'RegisterResponseDto' could be found (are you missing a using directive or an assembly reference?) [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Program.cs(66,35): error CS0104: 'ISession' is an ambiguous reference between 'Cassandra.ISession' and 'Microsoft.AspNetCore.Http.ISession' [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Program.cs(66,45): error CS1503: Argument 2: cannot convert from 'Cassandra.ISession' to 'System.Func<System.IServiceProvider, Cassandra.ISession>' [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+
+Build FAILED.
+
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Data/PM.Data.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PMProject.slnx]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1904: Package 'Microsoft.AspNetCore.Server.Kestrel.Core' 2.3.0 has a known critical severity vulnerability, https://github.com/advisories/GHSA-5rrx-jjjq-q2r5 [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PMProject.slnx]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PMProject.slnx]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1904: Package 'Microsoft.AspNetCore.Server.Kestrel.Core' 2.3.0 has a known critical severity vulnerability, https://github.com/advisories/GHSA-5rrx-jjjq-q2r5
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Core/PM.Core.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.Data/PM.Data.csproj : warning NU1903: Package 'Newtonsoft.Json' 9.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-5crp-9r3c-p9vr
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Controllers/AuthController.cs(37,17): error CS0117: 'RegisterResponseDto' does not contain a definition for 'Email' [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Controllers/AuthController.cs(37,30): error CS1061: 'RegisterResponseDto' does not contain a definition for 'Email' and no accessible extension method 'Email' accepting a first argument of type 'RegisterResponseDto' could be found (are you missing a using directive or an assembly reference?) [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Program.cs(66,35): error CS0104: 'ISession' is an ambiguous reference between 'Cassandra.ISession' and 'Microsoft.AspNetCore.Http.ISession' [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/Program.cs(66,45): error CS1503: Argument 2: cannot convert from 'Cassandra.ISession' to 'System.Func<System.IServiceProvider, Cassandra.ISession>' [/home/uguuuu/Documents/GitHub/COM-project2/pm-project/server/PM.API/PM.API.csproj]
+    6 Warning(s)
+    4 Error(s)
+
+Time Elapsed 00:00:01.83

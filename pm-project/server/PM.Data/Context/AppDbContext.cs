@@ -12,8 +12,7 @@ namespace PM.Data.Context
 
         public DbSet<UserDMO> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
-        public DbSet<Chat> Chats { get; set; }
-        public DbSet<Message> Messages { get; set; }
+        public DbSet<ConversationDMO> Conversations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -22,24 +21,12 @@ namespace PM.Data.Context
             modelBuilder.Entity<UserDMO>()
                 .HasMany(u => u.Roles)
                 .WithMany(r => r.Users)
-                .UsingEntity(j => j.ToTable("UserRoles"));
+                .UsingEntity(j => j.ToTable("USER_ROLES"));
 
-            modelBuilder.Entity<Chat>()
-                .HasOne(c => c.User1)
-                .WithMany()
-                .HasForeignKey(c => c.User1Id)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Chat>()
-                .HasOne(c => c.User2)
-                .WithMany()
-                .HasForeignKey(c => c.User2Id)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Message>()
-                .HasOne(m => m.Chat)
-                .WithMany(c => c.Messages)
-                .HasForeignKey(m => m.ChatId);
+            modelBuilder.Entity<UserDMO>()
+                .HasMany(u => u.Conversations)
+                .WithMany(c => c.Participants)
+                .UsingEntity(j => j.ToTable("CONVERSATION_PARTICIPANTS"));
         }
     }
 }

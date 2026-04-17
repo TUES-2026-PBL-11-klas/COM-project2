@@ -28,8 +28,7 @@ namespace PM.Core.Services
 
             var user = new UserDMO
             {
-                Username = request.Username,
-                Email = request.Email
+                Username = request.Username
             };
 
             user.PasswordHash = _hasher.HashPassword(user, request.Password);
@@ -59,7 +58,6 @@ namespace PM.Core.Services
             return new RegisterResponseDto
             {
                 Username = user.Username,
-                Email = user.Email,
                 Roles = user.Roles.Select(r => r.Name).ToList()
             };
         }

@@ -1,41 +1,41 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using PM.Core.Interfaces;
-using PM.Data.Context;
+using PM.Data.Repositories;
 using PM.Data.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace PM.Core.Services
 {
     public class ChatService : IChatService
     {
-        private readonly AppDbContext _appDbContext;
+        private readonly IMessageRepository _messageRepository;
 
-        public ChatService(AppDbContext appDbContext)
+        public ChatService(IMessageRepository messageRepository)
         {
-            _appDbContext = appDbContext;
+            _messageRepository = messageRepository;
         }
 
-        public async Task<Message> SendMessageAsync(Guid chatId, Guid senderId, string content)
+        public async Task<MessageDMO> SendMessageAsync(Guid conversationId, Guid senderId, string content)
         {
-            var message = new Message
+            var message = new MessageDMO
             {
-                ChatId = chatId,
-                SenderId = senderId,
+                Id = Guid.NewGuid(),
+                ConversationId = conversationId,
+                UserId = senderId,
                 Content = content,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Attachments = new List<string>()
             };
 
-            _appDbContext.Messages.Add(message);
-            await _appDbContext.SaveChangesAsync();
+            await _messageRepository.AddMessageAsync(message);
 
             return message;
         }
 
-        public async Task<IEnumerable<Message>> GetChatMessagesAsync(Guid chatId)
+        public async Task<IEnumerable<MessageDMO>> GetChatMessagesAsync(Guid conversationId)
         {
-            return await _appDbContext.Messages
-                .Where(m => m.ChatId == chatId)
-                .OrderBy(m => m.CreatedAt)
-                .ToListAsync();
+            return await _messageRepository.GetMessagesForConversationAsync(conversationId);
         }
     }
 }

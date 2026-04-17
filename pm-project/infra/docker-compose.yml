@@ -1,4 +1,24 @@
 services:
+  postgres-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: pmdb
+    ports:
+      - "5432:5432"
+    networks:
+      - elk
+
+  cassandra-db:
+    image: cassandra:latest
+    ports:
+      - "9042:9042"
+    environment:
+      - CASSANDRA_CLUSTER_NAME=PMCluster
+    networks:
+      - elk
+
   grafana-alloy:
     image: grafana/alloy:latest
     volumes:
@@ -25,6 +45,10 @@ services:
       - "5130:5130"
     depends_on:
       grafana-alloy:
+        condition: service_started
+      postgres-db:
+        condition: service_started
+      cassandra-db:
         condition: service_started
     networks:
       - elk

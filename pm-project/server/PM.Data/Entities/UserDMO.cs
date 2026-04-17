@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace PM.Data.Entities
 {
@@ -6,10 +7,11 @@ namespace PM.Data.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Username { get; set; } = null!;
-        public string Email { get; set; } = null!;
         public string PasswordHash { get; set; } = null!;
+        public string? ProfilePicture { get; set; }
         public DateTime CreatedAt { get; set; }
+        
         public ICollection<Role> Roles { get; set; } = new List<Role>();
-        public ICollection<Chat> Chats { get; set; } = new List<Chat>();
+        public ICollection<ConversationDMO> Conversations { get; set; } = new List<ConversationDMO>();
     }
 }
