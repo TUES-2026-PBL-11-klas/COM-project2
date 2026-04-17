@@ -28,7 +28,6 @@
     <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Grafana.Loki" Version="8.3.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,8 +24,8 @@ namespace PM.Tests.Services
             var context = new AppDbContext(options);
 
             // Add default roles
-            context.Roles.Add(new RoleDMO { Id = 1, Name = "Student" });
-            context.Roles.Add(new RoleDMO { Id = 2, Name = "Admin" });
+            context.Roles.Add(new Role { Name = "Student" });
+            context.Roles.Add(new Role { Name = "Admin" });
             context.SaveChanges();
 
             var mockRepo = new Mock<IUserRepository>();
@@ -94,7 +94,7 @@ namespace PM.Tests.Services
             {
                 Username = "validUser",
                 Email = "valid@test.com",
-                Roles = new List<RoleDMO> { new RoleDMO { Id = 1, Name = "Student" } }
+                Roles = new List<Role> { new Role { Name = "Student" } }
             };
             dummyUser.PasswordHash = passwordHasher.HashPassword(dummyUser, "correctPwd");
 
@@ -124,7 +124,7 @@ namespace PM.Tests.Services
             var dummyUser = new UserDMO
             {
                 Username = "target",
-                Roles = new List<RoleDMO> { context.Roles.First(r => r.Name == "Student") }
+                Roles = new List<Role> { context.Roles.First(r => r.Name == "Student") }
             };
             mockRepo.Setup(x => x.GetByUsername("target")).Returns(dummyUser);
 
