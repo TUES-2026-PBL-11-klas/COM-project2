@@ -101,6 +101,9 @@ var app = builder.Build();
 using var scope = app.Services.CreateScope();
 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 RoleSeeder.SeedRoles(dbContext);
+// tva e za testvane s nqkvi acounti
+PM.Data.Seed.MentorSeeder.SeedTestMentors(dbContext);
+// tva e za testvane s nqkvi acounti
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<LoggingMiddleware>();

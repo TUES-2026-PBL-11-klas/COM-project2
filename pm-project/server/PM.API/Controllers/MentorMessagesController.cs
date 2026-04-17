@@ -52,6 +52,21 @@ namespace PM.API.Controllers
                 };
                 _db.Chats.Add(chat);
                 await _db.SaveChangesAsync();
+
+                // increment mentor's students helped count when a new chat is created (internal mentor profiles)
+                try
+                {
+                    if (isGuid)
+                    {
+                        var mp = _db.MentorProfiles.FirstOrDefault(m => m.UserId == mentorGuid);
+                        if (mp != null)
+                        {
+                            mp.StudentsHelped += 1;
+                            await _db.SaveChangesAsync();
+                        }
+                    }
+                }
+                catch { }
             }
 
             var message = await _chatService.SendMessageAsync(chat.Id, senderId, dto.Content);
@@ -66,6 +81,62 @@ namespace PM.API.Controllers
             };
 
             return CreatedAtAction(nameof(GetMessages), new { mentorId = mentorId, senderId = senderId.ToString() }, outMsg);
+        }
+
+        [HttpPost("{mentorId}/start")]
+        public async Task<IActionResult> StartChat(string mentorId, [FromBody] PM.Core.DTOs.SendMessageDto dto)
+        {
+            var senderId = dto?.SenderId ?? Guid.Empty;
+            if (senderId == Guid.Empty && User?.Identity?.IsAuthenticated == true)
+            {
+                var username = User.Identity.Name;
+                var user = _db.Users.FirstOrDefault(u => u.Username == username);
+                if (user != null) senderId = user.Id;
+            }
+
+            if (senderId == Guid.Empty)
+                return BadRequest("senderId is required either in request body or via authenticated token");
+
+            Guid mentorGuid = Guid.Empty;
+            var isGuidLocal = Guid.TryParse(mentorId, out mentorGuid);
+
+            var chat = _db.Chats.FirstOrDefault(c =>
+                (isGuidLocal && ((c.User1Id == senderId && c.User2Id == mentorGuid) || (c.User1Id == mentorGuid && c.User2Id == senderId)))
+                || (!isGuidLocal && c.ExternalMentorId == mentorId && (c.User1Id == senderId || c.User2Id == senderId)));
+
+            var created = false;
+            if (chat == null)
+            {
+                chat = new Chat
+                {
+                    User1Id = senderId,
+                    User2Id = isGuidLocal ? mentorGuid : Guid.Empty,
+                    ExternalMentorId = isGuidLocal ? null : mentorId,
+                    Name = isGuidLocal ? $"chat_{senderId}_{mentorGuid}" : $"chat_{senderId}_ext_{mentorId}"
+                };
+                _db.Chats.Add(chat);
+                await _db.SaveChangesAsync();
+                created = true;
+            }
+
+            if (created)
+            {
+                try
+                {
+                    if (isGuidLocal)
+                    {
+                        var mp = _db.MentorProfiles.FirstOrDefault(m => m.UserId == mentorGuid);
+                        if (mp != null)
+                        {
+                            mp.StudentsHelped += 1;
+                            await _db.SaveChangesAsync();
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            return Ok(new { chatId = chat.Id });
         }
 
         [HttpGet("{mentorId}/messages")]

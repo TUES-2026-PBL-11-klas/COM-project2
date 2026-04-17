@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useMentorChat } from "../../contexts/MentorChatContext";
 import { API_URL } from "../../constants/api";
-import { getToken, getUserId } from "../../utils/storage";
+import { getToken, getUserId, ensureUserId } from "../../utils/storage";
 import { useRouter } from "expo-router";
 import { getMentors } from "../../viewmodels/home/homeViewModel";
 
@@ -35,7 +35,7 @@ export default function ChatView() {
     try { setSelectedMentorForChat?.(null); } catch {}
 
     const mentorId = m.externalMentorId || m.user2Id || m.user1Id || m.id;
-    const senderId = await getUserId();
+    const senderId = await ensureUserId();
     const token = await getToken();
 
     if (!senderId && !token) return;
@@ -129,7 +129,7 @@ export default function ChatView() {
     (async () => {
       if (!activeChat) return;
       try {
-        const senderId = await getUserId();
+        const senderId = await ensureUserId();
         const token = await getToken();
 
         if (!senderId && !token) return;
@@ -213,7 +213,7 @@ export default function ChatView() {
 
     (async () => {
       try {
-        const senderId = await getUserId();
+        const senderId = await ensureUserId();
         const token = await getToken();
         if (!activeChat) return;
         if (!senderId && !token) return;
@@ -329,24 +329,19 @@ export default function ChatView() {
       )}
       {activeChat && (
         <TouchableOpacity onPress={() => setActiveChat(null)} style={{ marginBottom: 12 }}>
-          <Text style={{ color: "#fff", fontWeight: "700" }}>← Back to chats</Text>
+          <Text style={{ color: "#2563EB", fontWeight: "700" }}>← Back to chats</Text>
         </TouchableOpacity>
       )}
       {activeChat && (
         <>
           <View style={styles.heroCard}>
             <Text style={styles.title}>{`Chat with ${resolveChatName(activeChat)}`}</Text>
-            <Text style={styles.subtitle}>{`Get help with ${activeChat.subject || ''} from your personal tutor.`}</Text>
+            <Text style={styles.subtitle}>{`Get help with ${Array.isArray(activeChat?.subjects) ? activeChat.subjects.join(', ') : (activeChat?.subject || '')} from your personal tutor.`}</Text>
             <View style={styles.statusBadge}>
               <Text style={styles.statusText}>{`${resolveChatName(activeChat)} online`}</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setActiveChat(null)}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
+            {/* removed close '✕' button as requested */}
           </View>
 
           <FlatList

@@ -19,6 +19,65 @@ namespace PM.API.Controllers
             _logger = logger;
         }
 
+        [AllowAnonymous]
+        [HttpGet("list")]
+        public IActionResult List()
+        {
+                var mentors = _db.MentorProfiles.ToList().Select(mp =>
+            {
+                var user = _db.Users.FirstOrDefault(u => u.Id == mp.UserId);
+                var reviews = _db.Reviews.Where(r => r.ReviewedUserId.HasValue && r.ReviewedUserId.Value == mp.UserId)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Select(r => new {
+                        id = r.Id,
+                        name = r.ReviewerName,
+                        rating = r.Rating,
+                        comment = r.Content,
+                        date = r.CreatedAt
+                    }).ToList();
+
+                double? avg = null;
+                if (reviews.Count > 0)
+                {
+                    avg = reviews.Average(r => (double)r.rating);
+                }
+
+                // derive a friendly display name from username (e.g. ivan.petrov -> Ivan Petrov)
+                string? displayName = null;
+                if (user?.Username != null)
+                {
+                    var cleaned = System.Text.RegularExpressions.Regex.Replace(user.Username, "[^a-zA-Z0-9]+", " ");
+                    var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    for (int i = 0; i < parts.Length; i++)
+                    {
+                        if (parts[i].Length > 0)
+                            parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
+                    }
+                    displayName = string.Join(' ', parts);
+                }
+
+                var avatarUrl = displayName != null ?
+                    $"https://ui-avatars.com/api/?name={System.Uri.EscapeDataString(displayName)}&background=2563EB&color=fff" :
+                    null;
+
+                return new
+                {
+                    // expose the mentor's user id as the canonical id (used when starting chats)
+                    id = mp.UserId.ToString(),
+                    profileId = mp.Id.ToString(),
+                    userId = mp.UserId.ToString(),
+                    name = displayName,
+                    subjects = mp.Subjects,
+                    students = mp.StudentsHelped,
+                    rating = avg,
+                    avatar = avatarUrl,
+                    reviews = reviews
+                };
+            }).ToList();
+
+            return Ok(mentors);
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateMentor([FromBody] CreateMentorDto dto)
         {
@@ -33,8 +92,6 @@ namespace PM.API.Controllers
 
             if (user == null && !string.IsNullOrWhiteSpace(dto?.UserId))
             {
-                // Only accept explicit GUID user ids from the client when not authenticated.
-                // Reject arbitrary username-like strings to avoid accidentally resolving other users.
                 if (Guid.TryParse(dto.UserId, out var parsed))
                 {
                     user = _db.Users.FirstOrDefault(u => u.Id == parsed);
@@ -98,19 +155,37 @@ namespace PM.API.Controllers
             if (Guid.TryParse(id, out g))
             {
                 var user = _db.Users.FirstOrDefault(u => u.Id == g);
-                if (user != null) return Ok(new { displayName = user.Username });
+                if (user != null)
+                {
+                    var cleaned = System.Text.RegularExpressions.Regex.Replace(user.Username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
+                    var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    for (int i = 0; i < parts.Length; i++) if (parts[i].Length > 0) parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
+                    return Ok(new { displayName = string.Join(' ', parts) });
+                }
             }
 
             // try by username
             var u2 = _db.Users.FirstOrDefault(u => u.Username == id);
-            if (u2 != null) return Ok(new { displayName = u2.Username });
+            if (u2 != null)
+            {
+                var cleaned = System.Text.RegularExpressions.Regex.Replace(u2.Username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
+                var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < parts.Length; i++) if (parts[i].Length > 0) parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
+                return Ok(new { displayName = string.Join(' ', parts) });
+            }
 
             // try mentor profiles (match by MentorProfile.Id or MentorProfile.UserId)
             var mp = _db.MentorProfiles.FirstOrDefault(m => m.Id.ToString() == id || m.UserId.ToString() == id);
             if (mp != null)
             {
                 var owner = _db.Users.FirstOrDefault(u => u.Id == mp.UserId);
-                if (owner != null) return Ok(new { displayName = owner.Username });
+                if (owner != null)
+                {
+                    var cleaned = System.Text.RegularExpressions.Regex.Replace(owner.Username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
+                    var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    for (int i = 0; i < parts.Length; i++) if (parts[i].Length > 0) parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
+                    return Ok(new { displayName = string.Join(' ', parts) });
+                }
             }
 
             // fallback: nothing found

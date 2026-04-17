@@ -2,11 +2,14 @@ import { useRouter } from "expo-router";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { useEffect, useState } from "react";
 import { getToken } from "../../utils/storage";
+import { API_URL } from "../../constants/api";
+import eventBus from "../../utils/eventBus";
 
 export default function HomePage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<any[]>([]);
 
   useEffect(() => {
     // Check if user is logged in
@@ -17,6 +20,35 @@ export default function HomePage() {
     };
 
     checkAuth();
+    // load mentors from server (fallback to local may exist elsewhere)
+    const loadMentors = async () => {
+      try {
+        const res = await fetch(`${API_URL}/mentors/list`);
+        if (res.ok) {
+          const data = await res.json();
+          const allReviews: any[] = [];
+          data.forEach((m: any) => {
+            const subjRaw = m.subjects || m.subject || '';
+            const subjArr = String(subjRaw).split(',').map((s: string) => s.trim()).filter(Boolean);
+            if (Array.isArray(m.reviews)) {
+              m.reviews.forEach((r: any) => allReviews.push({ ...r, mentorName: m.name, mentorSubjects: subjArr }));
+            }
+          });
+          setReviews(allReviews);
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    (async () => {
+      try {
+        await loadMentors();
+      } catch (e) { /* ignore */ }
+    })();
+
+    const unsub = eventBus.on('reviewUpdated', () => {
+      try { loadMentors(); } catch { }
+    });
+    return () => { if (unsub) unsub(); };
   }, []);
 
   if (loading) {
@@ -58,7 +90,7 @@ export default function HomePage() {
             <Text style={styles.statLabel}>Active Students</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>4.8★</Text>
+            <Text style={styles.statNumber}>{reviews.length === 0 ? 'None' : `${(Math.round((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) * 10) / 10).toFixed(1)}★`}</Text>
             <Text style={styles.statLabel}>Average Rating</Text>
           </View>
         </View>
@@ -143,20 +175,29 @@ export default function HomePage() {
         {/* Testimonials */}
         <View style={styles.testimonialsSection}>
           <Text style={styles.sectionTitle}>Student Reviews</Text>
-          <View style={styles.testimonialCard}>
-            <View style={styles.testimonialHeader}>
-              <Text style={styles.testimonialName}>Sarah M.</Text>
-              <Text style={styles.testimonialRating}>⭐⭐⭐⭐⭐</Text>
-            </View>
-            <Text style={styles.testimonialText}>"Best tutoring experience ever! My grades improved from C to A in just 2 months."</Text>
-          </View>
-          <View style={styles.testimonialCard}>
-            <View style={styles.testimonialHeader}>
-              <Text style={styles.testimonialName}>John D.</Text>
-              <Text style={styles.testimonialRating}>⭐⭐⭐⭐⭐</Text>
-            </View>
-            <Text style={styles.testimonialText}>"The mentor matched me perfectly and explained concepts so clearly. Highly recommend!"</Text>
-          </View>
+          {reviews.length === 0 ? (
+            <Text style={styles.empty}>No reviews yet.</Text>
+          ) : (
+            reviews.slice(0, 4).map((r, idx) => (
+              <View key={r.id || idx} style={styles.testimonialCard}>
+                <View style={styles.testimonialHeader}>
+                  <Text style={styles.testimonialName}>{r.name || 'Anonymous'}</Text>
+                    <Text style={styles.testimonialRating}>{Array.from({ length: 5 }).map((_, i) => (i < (r.rating || 0) ? '★' : '☆')).join('')}</Text>
+                </View>
+                  <Text style={styles.testimonialText}>{r.comment || r.content || ''}</Text>
+                    {r.mentorName ? (
+                    <View style={{ marginTop: 8 }}>
+                      <Text style={styles.testimonialMentorName}>{r.mentorName}</Text>
+                      <View style={styles.testimonialSubjectsRow}>
+                        {(r.mentorSubjects || []).slice(0,3).map((s: any) => (
+                          <Text key={s} style={styles.testimonialSubjectTag}>{s}</Text>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+              </View>
+            ))
+          )}
         </View>
 
         {/* CTA Section */}
@@ -355,6 +396,33 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontStyle: "italic",
   },
+  testimonialMentorName: {
+    fontSize: 13,
+    color: "#0F172A",
+    fontWeight: "700",
+  },
+  testimonialSubject: {
+    fontSize: 12,
+    color: "#2563EB",
+    fontWeight: "700",
+  },
+  testimonialSubjectsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  testimonialSubjectTag: {
+    fontSize: 12,
+    color: '#2563EB',
+    backgroundColor: 'rgba(37,99,235,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginRight: 6,
+    marginBottom: 6,
+    fontWeight: '700',
+  },
+  empty: { color: "#64748B", fontStyle: "italic" },
   ctaSection: {
     backgroundColor: "#fff",
     padding: 24,

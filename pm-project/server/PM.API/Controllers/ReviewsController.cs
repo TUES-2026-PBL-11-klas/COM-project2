@@ -17,6 +17,21 @@ namespace PM.API.Controllers
             _db = db;
         }
 
+
+
+        private static string? FormatDisplayNameHelper(string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username)) return null;
+            var cleaned = System.Text.RegularExpressions.Regex.Replace(username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
+            var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length > 0)
+                    parts[i] = char.ToUpper(parts[i][0]) + (parts[i].Length > 1 ? parts[i].Substring(1) : "");
+            }
+            return string.Join(' ', parts);
+        }
+
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto dto)
@@ -60,6 +75,13 @@ namespace PM.API.Controllers
             _db.Reviews.Add(review);
             await _db.SaveChangesAsync();
 
+            string? reviewedName = null;
+            if (review.ReviewedUserId.HasValue)
+            {
+                var u = _db.Users.FirstOrDefault(u => u.Id == review.ReviewedUserId.Value);
+                reviewedName = u != null ? FormatDisplayNameHelper(u.Username) : null;
+            }
+
             return CreatedAtAction(nameof(GetReviewsFor), new { reviewedId = dto.ReviewedId }, new OutReviewDto
             {
                 Id = review.Id,
@@ -67,7 +89,7 @@ namespace PM.API.Controllers
                 ReviewerName = review.ReviewerName,
                 ReviewedUserId = review.ReviewedUserId,
                 ReviewedExternalId = review.ReviewedExternalId,
-                ReviewedUserName = review.ReviewedUserId.HasValue ? _db.Users.FirstOrDefault(u => u.Id == review.ReviewedUserId.Value)?.Username : null,
+                ReviewedUserName = reviewedName,
                 Rating = review.Rating,
                 Content = review.Content,
                 CreatedAt = review.CreatedAt
@@ -93,17 +115,32 @@ namespace PM.API.Controllers
                 q = q.Where(r => r.ReviewedExternalId == reviewedId);
             }
 
-            var outList = q.OrderByDescending(r => r.CreatedAt).Select(r => new OutReviewDto
+            // FormatDisplayName helper moved to class-level FormatDisplayNameHelper
+
+            // materialize reviews first to avoid using local functions inside an expression tree (EF cannot translate that)
+            var reviewEntities = q.OrderByDescending(r => r.CreatedAt).ToList();
+
+            var outList = reviewEntities.Select(r =>
             {
-                Id = r.Id,
-                ReviewerId = r.ReviewerId,
-                ReviewerName = r.ReviewerName,
-                ReviewedUserId = r.ReviewedUserId,
-                ReviewedExternalId = r.ReviewedExternalId,
-                ReviewedUserName = r.ReviewedUserId.HasValue ? _db.Users.Where(u => u.Id == r.ReviewedUserId.Value).Select(u => u.Username).FirstOrDefault() : null,
-                Rating = r.Rating,
-                Content = r.Content,
-                CreatedAt = r.CreatedAt
+                string? reviewedName = null;
+                if (r.ReviewedUserId.HasValue)
+                {
+                    var u = _db.Users.FirstOrDefault(u => u.Id == r.ReviewedUserId.Value);
+                    reviewedName = u != null ? FormatDisplayNameHelper(u.Username) : null;
+                }
+
+                return new OutReviewDto
+                {
+                    Id = r.Id,
+                    ReviewerId = r.ReviewerId,
+                    ReviewerName = r.ReviewerName,
+                    ReviewedUserId = r.ReviewedUserId,
+                    ReviewedExternalId = r.ReviewedExternalId,
+                    ReviewedUserName = reviewedName,
+                    Rating = r.Rating,
+                    Content = r.Content,
+                    CreatedAt = r.CreatedAt
+                };
             }).ToList();
 
             return Ok(outList);
@@ -118,22 +155,35 @@ namespace PM.API.Controllers
             var user = _db.Users.FirstOrDefault(u => u.Username == username);
             if (user == null) return Unauthorized();
 
-            var q = _db.Reviews.Where(r => r.ReviewerId == user.Id || r.ReviewerName == username)
+            // materialize results first to avoid expression-tree-local-function translation issues
+            var authoredEntities = _db.Reviews.Where(r => r.ReviewerId == user.Id || r.ReviewerName == username)
                 .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new OutReviewDto
+                .ToList();
+
+            var authored = authoredEntities.Select(r =>
+            {
+                string? reviewedName = null;
+                if (r.ReviewedUserId.HasValue)
+                {
+                    var u = _db.Users.FirstOrDefault(u => u.Id == r.ReviewedUserId.Value);
+                    reviewedName = u != null ? FormatDisplayNameHelper(u.Username) : null;
+                }
+
+                return new OutReviewDto
                 {
                     Id = r.Id,
                     ReviewerId = r.ReviewerId,
                     ReviewerName = r.ReviewerName,
                     ReviewedUserId = r.ReviewedUserId,
                     ReviewedExternalId = r.ReviewedExternalId,
-                    ReviewedUserName = r.ReviewedUserId.HasValue ? _db.Users.Where(u => u.Id == r.ReviewedUserId.Value).Select(u => u.Username).FirstOrDefault() : null,
+                    ReviewedUserName = reviewedName,
                     Rating = r.Rating,
                     Content = r.Content,
                     CreatedAt = r.CreatedAt
-                }).ToList();
+                };
+            }).ToList();
 
-            return Ok(q);
+            return Ok(authored);
         }
 
         [Authorize]

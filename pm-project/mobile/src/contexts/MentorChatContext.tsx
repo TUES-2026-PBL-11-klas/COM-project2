@@ -3,7 +3,9 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 interface Mentor {
   id: string;
   name: string;
-  subject: string;
+  subject?: string;
+  subjects?: string | string[];
+  subjectsArray?: string[];
   rating: number;
   experience: string;
   students: number;

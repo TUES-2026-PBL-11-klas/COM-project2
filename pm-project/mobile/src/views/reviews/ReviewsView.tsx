@@ -24,7 +24,9 @@ interface Review {
 interface Mentor {
   id: string;
   name: string;
-  subject: string;
+  subject?: string;
+  subjects?: string | string[];
+  subjectsArray?: string[];
   rating: number;
   reviews: Review[];
 }
@@ -43,7 +45,7 @@ export default function ReviewsView(props: ReviewsViewProps) {
   const [hasReviewed, setHasReviewed] = useState(false);
 
   const averageScore = reviews.length > 0
-    ? (reviews.reduce((total, review) => total + review.rating, 0) / reviews.length).toFixed(1)
+    ? (Math.round((reviews.reduce((total, review) => total + review.rating, 0) / reviews.length) * 10) / 10).toFixed(1)
     : "0.0";
 
   const addReview = () => {
@@ -184,7 +186,11 @@ export default function ReviewsView(props: ReviewsViewProps) {
       {mentor && (
         <View style={styles.mentorHeader}>
           <Text style={styles.mentorName}>{mentor.name}</Text>
-          <Text style={styles.mentorSubject}>{mentor.subject} Tutor</Text>
+          <View style={styles.mentorSubjectsRow}>
+            {(((mentor && (mentor.subjects || mentor.subject)) || '').toString().split(',').map((s: string) => s.trim()).filter(Boolean)).slice(0,4).map((s: string) => (
+              <Text key={s} style={styles.mentorSubjectTag}>{s}</Text>
+            ))}
+          </View>
           <View style={styles.mentorRating}>
             <Text style={styles.mentorRatingIcon}>⭐</Text>
             <Text style={styles.mentorRatingText}>{averageScore}</Text>
@@ -330,6 +336,22 @@ const styles = StyleSheet.create({
     color: "#2563EB",
     fontWeight: "600",
     marginBottom: 12,
+  },
+  mentorSubjectsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  mentorSubjectTag: {
+    fontSize: 14,
+    color: '#2563EB',
+    backgroundColor: 'rgba(37,99,235,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginRight: 6,
+    marginBottom: 6,
+    fontWeight: '600',
   },
   mentorRating: {
     flexDirection: "row",

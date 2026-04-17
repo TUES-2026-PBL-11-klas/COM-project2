@@ -26,3 +26,19 @@ export async function getUserId() {
 export async function removeUserId() {
   await AsyncStorage.removeItem(USER_ID_KEY);
 }
+
+// Ensure a persistent local user id exists. If missing, generate and store one.
+export async function ensureUserId() {
+  let id = await AsyncStorage.getItem(USER_ID_KEY);
+  if (!id) {
+    // simple UUIDv4 generator
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+    id = uuid;
+    await AsyncStorage.setItem(USER_ID_KEY, id);
+  }
+  return id;
+}

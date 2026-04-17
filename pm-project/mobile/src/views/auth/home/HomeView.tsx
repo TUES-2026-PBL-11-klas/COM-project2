@@ -6,9 +6,12 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getMentors } from "../../../viewmodels/home/homeViewModel";
+import eventBus from "../../../utils/eventBus";
+import { API_URL } from "../../../constants/api";
+import { getUserId, ensureUserId } from "../../../utils/storage";
 import { useMentorReviews } from "../../../contexts/MentorReviewsContext";
 import { useMentorChat } from "../../../contexts/MentorChatContext";
 
@@ -22,20 +25,49 @@ export default function HomeView() {
 
   useEffect(() => {
     load();
+    const unsub = eventBus.on('reviewUpdated', () => { try { load(); } catch {} });
+    return () => { if (unsub) unsub(); };
   }, []);
 
   const load = async () => {
-    const data = await getMentors();
-    setMentors(data);
+    try {
+      const res = await fetch(`${API_URL}/mentors/list`);
+      if (res.ok) {
+        const data = await res.json();
+        // normalize mentors: expose `subjectsArray` (split comma-separated subjects)
+        const mapped = data.map((m: any) => {
+          const arr = String(m.subjects || m.subject || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+          return { ...m, subjectsArray: arr };
+        });
+        setMentors(mapped);
+        return;
+      }
+    } catch (e) { }
+    // fallback to local data when API fails
+    try {
+      const local = await import("../../../viewmodels/home/homeViewModel");
+      const data = await local.getMentors();
+      setMentors(data);
+    } catch (e) { setMentors([]); }
   };
 
-  const subjects = Array.from(new Set(mentors.map((m) => m.subject)));
+  // build a list of subjects from mentors' `subjectsArray`
+  const subjects = Array.from(
+    new Set(
+      mentors.flatMap((m) => {
+        const sArr = m.subjectsArray || (m.subjects || m.subject || "").toString().split(',').map((x:string)=>x.trim()).filter(Boolean);
+        return sArr;
+      })
+    )
+  );
 
   const filtered = mentors.filter((m) => {
+    const subjectVal = (m.subjectsArray || (m.subjects || m.subject || "").toString().split(',').map((x:string)=>x.trim()).filter(Boolean)).join(',');
+    const nameVal = String(m.name || "");
     const matchesSearch =
-      m.subject.toLowerCase().includes(search.toLowerCase()) ||
-      m.name.toLowerCase().includes(search.toLowerCase());
-    const matchesSubject = !selectedSubject || m.subject === selectedSubject;
+      subjectVal.toLowerCase().includes(search.toLowerCase()) ||
+      nameVal.toLowerCase().includes(search.toLowerCase());
+    const matchesSubject = !selectedSubject || subjectVal === selectedSubject;
     return matchesSearch && matchesSubject;
   });
 
@@ -114,19 +146,37 @@ export default function HomeView() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <View style={styles.mentorInfo}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.subject}>{item.subject}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                {item.avatar ? (
+                  <Image source={{ uri: item.avatar }} style={{ width: 48, height: 48, borderRadius: 24, marginRight: 12 }} />
+                ) : (
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EFF6FF', marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: '#2563EB', fontWeight: '700' }}>{(item.name || 'U').charAt(0)}</Text>
+                  </View>
+                )}
+                <View style={styles.mentorInfo}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <View style={styles.subjectsRow}>
+                    {(item.subjectsArray || []).slice(0, 4).map((s: string) => (
+                      <Text key={s} style={styles.subjectTag}>{s}</Text>
+                    ))}
+                  </View>
+                </View>
               </View>
               <View style={styles.headerRight}>
-                <View style={[styles.availabilityBadge, item.available ? styles.availableBadge : styles.unavailableBadge]}>
-                  <Text style={[styles.availabilityText, item.available ? styles.availableText : styles.unavailableText]}>
-                    {item.available ? "Available" : "Busy"}
-                  </Text>
-                </View>
+                  {(() => {
+                    const canChat = Boolean(item.userId || item.id);
+                    return (
+                      <View style={[styles.availabilityBadge, canChat ? styles.availableBadge : styles.unavailableBadge]}>
+                        <Text style={[styles.availabilityText, canChat ? styles.availableText : styles.unavailableText]}>
+                          {canChat ? "Available" : "Busy"}
+                        </Text>
+                      </View>
+                    );
+                  })()}
                 <View style={styles.ratingBadge}>
                   <Text style={styles.ratingIcon}>⭐</Text>
-                  <Text style={styles.rating}>{item.rating}</Text>
+                  <Text style={styles.rating}>{item.rating ? (Math.round((item.rating) * 10) / 10).toFixed(1) : "-"}</Text>
                 </View>
               </View>
             </View>
@@ -144,18 +194,29 @@ export default function HomeView() {
 
             <View style={styles.priceRow}>
               <TouchableOpacity
-                style={[styles.bookButton, !item.available && styles.bookButtonDisabled]}
+                style={[styles.bookButton, !(item.userId || item.id) && styles.bookButtonDisabled]}
                 onPress={() => {
-                  if (item.available) {
-                    setSelectedMentorForChat(item);
-                    setSelectedMentor(item); // Also set for reviews
-                    router.push("/tabs/chat");
-                  }
+                  (async () => {
+                    try {
+                      const uid = await ensureUserId();
+                      const res = await fetch(`${API_URL}/chats`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ mentorId: item.userId || item.id, senderId: uid })
+                      });
+                      if (!res.ok) {
+                        console.warn('Start chat failed', res.status, await res.text());
+                      } else {
+                        const created = await res.json();
+                        try { setSelectedMentorForChat(item); } catch {}
+                        setSelectedMentor(item);
+                        router.push('/tabs/chat');
+                      }
+                    } catch (e) { console.warn('Start chat error', e); }
+                  })();
                 }}
-                disabled={!item.available}
-              >
-                <Text style={[styles.bookButtonText, !item.available && styles.bookButtonTextDisabled]}>
-                  {item.available ? "Start Chatting" : "Unavailable"}
+                >
+                <Text style={[styles.bookButtonText, !(item.userId || item.id) && styles.bookButtonTextDisabled]}>
+                  Start Chat
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -337,6 +398,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#2563EB",
     fontWeight: "700",
+  },
+  subjectsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  subjectTag: {
+    fontSize: 12,
+    color: '#2563EB',
+    backgroundColor: 'rgba(37,99,235,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginRight: 6,
+    marginBottom: 6,
+    fontWeight: '700',
   },
   headerRight: {
     alignItems: "flex-end",
