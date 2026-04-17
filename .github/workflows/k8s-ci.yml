@@ -58,10 +58,7 @@ jobs:
         envsubst < pm-project/infra/k8s/pm-api-secret.yaml.template > pm-project/infra/k8s/pm-api-secret.yaml
 
     - name: Validate Kubernetes Manifests
-      uses: yannh/kubeconform-action@v0.1.0
+      uses: docker://ghcr.io/yannh/kubeconform:latest
       with:
-        schema-location: "default"
-        directory: "pm-project/infra/k8s"
-        recursive: true
-        strict: true
-        ignore-missing-schemas: true
+        entrypoint: "/kubeconform"
+        args: "-summary -verbose -recursive pm-project/infra/k8s"
