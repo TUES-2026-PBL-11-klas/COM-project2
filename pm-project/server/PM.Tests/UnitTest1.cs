@@ -1,10 +1,1 @@
-﻿namespace PM.Tests;
-
-public class UnitTest1
-{
-    [Fact]
-    public void Test1()
-    {
-
-    }
-}
+// empty file to replace the default test
