@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pm-api
+  namespace: pm-project
+  labels:
+    app: pm-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pm-api
+  template:
+    metadata:
+      labels:
+        app: pm-api
+    spec:
+      containers:
+        - name: pm-api
+          image: alexnay/pm-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5130
+          env:
+            - name: DOTNET_ENVIRONMENT
+              value: "Development"
+            - name: ASPNETCORE_URLS
+              value: "http://+:5130"
+            - name: Jwt__Key
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: Jwt__Key
+            - name: Jwt__Issuer
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: Jwt__Issuer
+            - name: Jwt__Audience
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: Jwt__Audience
+            - name: GRAFANA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: GRAFANA_API_KEY
+            - name: GRAFANA_OTLP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: GRAFANA_OTLP_URL
+            - name: GRAFANA_BASIC_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: GRAFANA_BASIC_AUTH
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: OTEL_SERVICE_NAME
+            - name: LOKI_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: LOKI_URL
+            - name: LOKI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: LOKI_USERNAME
+            - name: LOKI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: LOKI_PASSWORD
+            - name: LOKI_BASIC_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: LOKI_BASIC_AUTH
+          readinessProbe:
+            tcpSocket:
+              port: 5130
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5130
+            initialDelaySeconds: 20
+            periodSeconds: 30

@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-alloy
+  namespace: pm-project
+  labels:
+    app: grafana-alloy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-alloy
+  template:
+    metadata:
+      labels:
+        app: grafana-alloy
+    spec:
+      serviceAccountName: alloy-sa
+      containers:
+        - name: grafana-alloy
+          image: grafana/alloy:latest
+          args:
+            - run
+            - /etc/alloy/config.alloy
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+            - containerPort: 4318
+              name: otlp-http
+          env:
+            - name: GRAFANA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: GRAFANA_API_KEY
+            - name: GRAFANA_OTLP_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: GRAFANA_OTLP_URL
+            - name: LOKI_URL
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: LOKI_URL
+            - name: LOKI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: LOKI_USERNAME
+            - name: LOKI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pm-api-secret
+                  key: LOKI_PASSWORD
+          volumeMounts:
+            - name: alloy-config-volume
+              mountPath: /etc/alloy
+      volumes:
+        - name: alloy-config-volume
+          configMap:
+            name: alloy-config
+---
+# ServiceAccount with RBAC so Alloy can discover pods for log collection
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy-sa
+  namespace: pm-project
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy-pod-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy-pod-reader-binding
+subjects:
+  - kind: ServiceAccount
+    name: alloy-sa
+    namespace: pm-project
+roleRef:
+  kind: ClusterRole
+  name: alloy-pod-reader
+  apiGroup: rbac.authorization.k8s.io
