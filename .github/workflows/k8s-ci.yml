@@ -58,5 +58,10 @@ jobs:
         envsubst < pm-project/infra/k8s/pm-api-secret.yaml.template > pm-project/infra/k8s/pm-api-secret.yaml
 
     - name: Validate Kubernetes Manifests
-      run: |
-        kubectl apply --dry-run=client -Rf pm-project/infra/k8s/
+      uses: yannh/kubeconform-action@v0.1.0
+      with:
+        schema-location: "default"
+        directory: "pm-project/infra/k8s"
+        recursive: true
+        strict: true
+        ignore-missing-schemas: true
