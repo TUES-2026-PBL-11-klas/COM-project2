@@ -7,7 +7,7 @@ function getHostForDevice() {
 			const host = dbg.split(":")[0];
 			return host;
 		}
-	} catch (e) {
+	} catch (_e) {
 		// ignore
 	}
 	return "localhost";

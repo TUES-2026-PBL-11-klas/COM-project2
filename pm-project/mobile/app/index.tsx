@@ -18,7 +18,7 @@ export default function Index() {
     };
 
     checkAuth();
-  }, []);
+  }, [router]);
 
   return null;
 }

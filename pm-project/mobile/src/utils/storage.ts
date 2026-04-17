@@ -17,7 +17,7 @@ export async function getToken(timeoutMs = 5000) {
 
     const result = await Promise.race([getItemPromise, timeoutPromise]);
     return result as string | null;
-  } catch (err) {
+  } catch (_err) {
     return null;
   }
 }

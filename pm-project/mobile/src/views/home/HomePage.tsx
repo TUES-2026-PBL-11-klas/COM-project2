@@ -148,14 +148,14 @@ export default function HomePage() {
               <Text style={styles.testimonialName}>Sarah M.</Text>
               <Text style={styles.testimonialRating}>⭐⭐⭐⭐⭐</Text>
             </View>
-            <Text style={styles.testimonialText}>"Best tutoring experience ever! My grades improved from C to A in just 2 months."</Text>
+            <Text style={styles.testimonialText}>&quot;Best tutoring experience ever! My grades improved from C to A in just 2 months.&quot;</Text>
           </View>
           <View style={styles.testimonialCard}>
             <View style={styles.testimonialHeader}>
               <Text style={styles.testimonialName}>John D.</Text>
               <Text style={styles.testimonialRating}>⭐⭐⭐⭐⭐</Text>
             </View>
-            <Text style={styles.testimonialText}>"The mentor matched me perfectly and explained concepts so clearly. Highly recommend!"</Text>
+            <Text style={styles.testimonialText}>&quot;The mentor matched me perfectly and explained concepts so clearly. Highly recommend!&quot;</Text>
           </View>
         </View>
 
