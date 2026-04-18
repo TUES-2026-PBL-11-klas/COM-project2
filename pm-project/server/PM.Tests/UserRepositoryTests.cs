@@ -1,53 +1,43 @@
-using System;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using PM.Data.Context;
 using PM.Data.Entities;
 using PM.Data.Repositories;
-using Xunit;
-using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace PM.Tests
 {
     public class UserRepositoryTests
     {
-        private AppDbContext GetDbContext()
+        private static AppDbContext CreateContext(string dbName)
         {
             var options = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql("Server=localhost;Port=5432;Database=pmdb;User Id=postgres;Password=postgrespassword;")
+                .UseInMemoryDatabase(dbName)
                 .Options;
-
-            var context = new AppDbContext(options);
-            context.Database.EnsureCreated();
-            return context;
+            return new AppDbContext(options);
         }
 
         [Fact]
         public void AddUser_And_GetByUsername_Should_Work()
         {
-            // Arrange
-            using var context = GetDbContext();
-            var repo = new UserRepository(context, NullLogger<UserRepository>.Instance);
+            using var context = CreateContext(Guid.NewGuid().ToString());
+            var repo = new UserRepository(context);
             var username = "testuser_" + Guid.NewGuid();
-            var email = username + "@test.com";
 
             var user = new UserDMO
             {
                 Id = Guid.NewGuid(),
                 Username = username,
+                Email = $"{username}@test.com",
                 PasswordHash = "hash"
             };
 
-            // Act
             repo.AddUser(user);
             repo.SaveChanges();
 
             var retrievedUser = repo.GetByUsername(username);
 
-            // Assert
-            retrievedUser.Should().NotBeNull();
-            retrievedUser!.Username.Should().Be(username);
+            Assert.NotNull(retrievedUser);
+            Assert.Equal(username, retrievedUser!.Username);
+            Assert.Equal(user.Email, retrievedUser.Email);
         }
     }
 }
