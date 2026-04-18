@@ -16,6 +16,11 @@ services:
       - "9042:9042"
     environment:
       - CASSANDRA_CLUSTER_NAME=PMCluster
+    healthcheck:
+      test: ["CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "describe keyspaces"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - elk
 
@@ -23,12 +28,12 @@ services:
     image: grafana/alloy:latest
     volumes:
       - ./alloy-config.alloy:/etc/alloy/config.alloy
-      - /var/run/docker.sock:/var/run/docker.sock
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     env_file:
       - .env
-    ports:
-      - "4317:4317"
-      - "4318:4318"
+    depends_on:
+      - postgres-db
+      - cassandra-db
     networks:
       - elk
 
@@ -41,14 +46,16 @@ services:
     environment:
       - DOTNET_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5130
+      - ConnectionStrings__DefaultConnection=Server=postgres-db;Port=5432;Database=pmdb;User Id=postgres;Password=postgrespassword;
+      - Cassandra__ContactPoints__0=cassandra-db
     ports:
       - "5130:5130"
     depends_on:
-      grafana-alloy:
-        condition: service_started
       postgres-db:
         condition: service_started
       cassandra-db:
+        condition: service_started
+      grafana-alloy:
         condition: service_started
     networks:
       - elk

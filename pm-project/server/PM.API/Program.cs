@@ -17,7 +17,7 @@ using PM.Data.Observability;
 using PM.Data.Repositories;
 using PM.Data.Seed;
 
-Env.Load();
+Env.Load(Path.Combine(Directory.GetCurrentDirectory(), "../../infra/.env"));
 
 var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
@@ -40,22 +40,41 @@ var cluster = Cluster.Builder()
     .AddContactPoint(cassandraHost)
     .Build();
 
-var keyspaceSession = cluster.Connect();
-keyspaceSession.Execute($"CREATE KEYSPACE IF NOT EXISTS {cassandraKeyspace} WITH replication = {{'class':'SimpleStrategy', 'replication_factor':1}};");
-keyspaceSession.Dispose();
+Cassandra.ISession? session = null;
+int retries = 0;
+while (retries < 15)
+{
+    try
+    {
+        Console.WriteLine($"[INIT] Connecting to Cassandra (Attempt {retries + 1})...");
+        var keyspaceSession = cluster.Connect();
+        keyspaceSession.Execute($"CREATE KEYSPACE IF NOT EXISTS {cassandraKeyspace} WITH replication = {{'class':'SimpleStrategy', 'replication_factor':1}};");
+        keyspaceSession.Dispose();
 
-var session = cluster.Connect(cassandraKeyspace);
-session.Execute(@"
-    CREATE TABLE IF NOT EXISTS messages (
-        Id uuid PRIMARY KEY,
-        ChatId uuid,
-        SenderId uuid,
-        Content text,
-        Attachments list<text>,
-        CreatedAt timestamp
-    );
-");
-session.Execute("CREATE INDEX IF NOT EXISTS idx_chat_id ON messages (ChatId);");
+        session = cluster.Connect(cassandraKeyspace);
+        session.Execute(@"
+            CREATE TABLE IF NOT EXISTS messages (
+                Id uuid PRIMARY KEY,
+                ChatId uuid,
+                SenderId uuid,
+                Content text,
+                Attachments list<text>,
+                CreatedAt timestamp
+            );
+        ");
+        session.Execute("CREATE INDEX IF NOT EXISTS idx_chat_id ON messages (ChatId);");
+        Console.WriteLine("[INIT] Cassandra connected and schema verified.");
+        break;
+    }
+    catch (Exception ex)
+    {
+        retries++;
+        Console.WriteLine($"[INIT] Cassandra not ready: {ex.Message}. Retrying in 5s...");
+        Thread.Sleep(5000);
+    }
+}
+
+if (session == null) throw new Exception("Could not connect to Cassandra after multiple attempts.");
 
 MappingConfiguration.Global.Define(
     new Map<MessageDMO>()
@@ -64,6 +83,7 @@ MappingConfiguration.Global.Define(
 
 builder.Services.AddSingleton(cluster);
 builder.Services.AddSingleton<Cassandra.ISession>(session);
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -78,26 +98,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
     });
 });
 
-builder.Logging.ClearProviders();
-builder.Logging.AddOpenTelemetry(options =>
-{
-    options.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("pm-api"));
-    options.IncludeFormattedMessage = true;
-    options.IncludeScopes = true;
-    options.ParseStateValues = true;
-    options.AddOtlpExporter(otlp =>
-    {
-        otlp.Endpoint = new Uri("http://grafana-alloy:4318/v1/logs");
-        otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-    });
-});
+builder.Logging.AddConsole();
 
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracerProviderBuilder =>
@@ -107,11 +114,9 @@ builder.Services.AddOpenTelemetry()
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddSource(DataActivitySource.SourceName)
-            .AddConsoleExporter()
-            .AddOtlpExporter(options =>
+            .AddOtlpExporter(opt =>
             {
-                options.Endpoint = new Uri("http://grafana-alloy:4318/v1/traces");
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                opt.Endpoint = new Uri("http://grafana-alloy:4317");
             });
     })
     .WithMetrics(metricsProviderBuilder =>
@@ -121,11 +126,9 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
             .AddMeter(DataMetrics.MeterName)
-            .AddConsoleExporter()
-            .AddOtlpExporter(options =>
+            .AddOtlpExporter(opt =>
             {
-                options.Endpoint = new Uri("http://grafana-alloy:4318/v1/metrics");
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                opt.Endpoint = new Uri("http://grafana-alloy:4317");
             });
     });
 
