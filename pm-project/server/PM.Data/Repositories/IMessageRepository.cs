@@ -7,7 +7,7 @@ namespace PM.Data.Repositories
 {
     public interface IMessageRepository
     {
-        Task<IEnumerable<MessageDMO>> GetMessagesForConversationAsync(Guid conversationId);
+        Task<IEnumerable<MessageDMO>> GetMessagesForChatAsync(Guid chatId);
         Task AddMessageAsync(MessageDMO message);
     }
 }

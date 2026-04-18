@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PM.Data.Context;
+using Microsoft.EntityFrameworkCore;
 using PM.Core.DTOs;
+using PM.Data.Context;
 using PM.Data.Entities;
 
 namespace PM.API.Controllers
@@ -17,56 +18,52 @@ namespace PM.API.Controllers
             _db = db;
         }
 
-
-
-        private static string? FormatDisplayNameHelper(string? username)
-        {
-            if (string.IsNullOrWhiteSpace(username)) return null;
-            var cleaned = System.Text.RegularExpressions.Regex.Replace(username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
-            var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < parts.Length; i++)
-            {
-                if (parts[i].Length > 0)
-                    parts[i] = char.ToUpper(parts[i][0]) + (parts[i].Length > 1 ? parts[i].Substring(1) : "");
-            }
-            return string.Join(' ', parts);
-        }
-
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto dto)
         {
-            Guid reviewerId = Guid.Empty;
-            if (dto.ReviewerId.HasValue)
-                reviewerId = dto.ReviewerId.Value;
-
-            if (reviewerId == Guid.Empty && User?.Identity?.IsAuthenticated == true)
+            var reviewerId = dto.ReviewerId ?? Guid.Empty;
+            if (reviewerId == Guid.Empty)
             {
-                var username = User.Identity.Name;
-                var u = _db.Users.FirstOrDefault(x => x.Username == username);
-                if (u != null) reviewerId = u.Id;
+                var currentUser = await ResolveCurrentUserAsync();
+                if (currentUser != null)
+                {
+                    reviewerId = currentUser.Id;
+                }
             }
 
-            if (reviewerId == Guid.Empty) return BadRequest("reviewerId or auth required");
-            if (string.IsNullOrWhiteSpace(dto.ReviewedId)) return BadRequest("reviewedId required");
+            if (reviewerId == Guid.Empty)
+            {
+                return BadRequest("reviewerId or auth required");
+            }
 
-            Guid reviewedGuid = Guid.Empty;
-            var isGuid = Guid.TryParse(dto.ReviewedId, out reviewedGuid);
+            if (string.IsNullOrWhiteSpace(dto.ReviewedId))
+            {
+                return BadRequest("reviewedId required");
+            }
 
-            if (isGuid && reviewedGuid == reviewerId) return BadRequest("Cannot review yourself");
+            var resolvedReviewedUserId = await ResolveReviewedUserIdAsync(dto.ReviewedId);
+            if (resolvedReviewedUserId == reviewerId)
+            {
+                return BadRequest("Cannot review yourself");
+            }
 
-            var exists = _db.Reviews.Any(r => r.ReviewerId == reviewerId &&
-                ((isGuid && r.ReviewedUserId.HasValue && r.ReviewedUserId.Value == reviewedGuid) ||
-                 (!isGuid && r.ReviewedExternalId == dto.ReviewedId)));
+            var reviewExists = await _db.Reviews.AnyAsync(r =>
+                r.ReviewerId == reviewerId &&
+                ((resolvedReviewedUserId.HasValue && r.ReviewedUserId == resolvedReviewedUserId.Value) ||
+                 (!resolvedReviewedUserId.HasValue && r.ReviewedExternalId == dto.ReviewedId)));
 
-            if (exists) return Conflict("Review already exists");
+            if (reviewExists)
+            {
+                return Conflict("Review already exists");
+            }
 
             var review = new Review
             {
                 ReviewerId = reviewerId,
                 ReviewerName = string.IsNullOrWhiteSpace(dto.ReviewerName) ? "Anonymous" : dto.ReviewerName,
-                ReviewedUserId = isGuid ? reviewedGuid : (Guid?)null,
-                ReviewedExternalId = isGuid ? null : dto.ReviewedId,
+                ReviewedUserId = resolvedReviewedUserId,
+                ReviewedExternalId = resolvedReviewedUserId.HasValue ? null : dto.ReviewedId,
                 Rating = dto.Rating,
                 Content = dto.Content,
                 CreatedAt = DateTime.UtcNow
@@ -75,184 +72,228 @@ namespace PM.API.Controllers
             _db.Reviews.Add(review);
             await _db.SaveChangesAsync();
 
-            string? reviewedName = null;
-            if (review.ReviewedUserId.HasValue)
-            {
-                var u = _db.Users.FirstOrDefault(u => u.Id == review.ReviewedUserId.Value);
-                reviewedName = u != null ? FormatDisplayNameHelper(u.Username) : null;
-            }
-
-            return CreatedAtAction(nameof(GetReviewsFor), new { reviewedId = dto.ReviewedId }, new OutReviewDto
-            {
-                Id = review.Id,
-                ReviewerId = review.ReviewerId,
-                ReviewerName = review.ReviewerName,
-                ReviewedUserId = review.ReviewedUserId,
-                ReviewedExternalId = review.ReviewedExternalId,
-                ReviewedUserName = reviewedName,
-                Rating = review.Rating,
-                Content = review.Content,
-                CreatedAt = review.CreatedAt
-            });
+            return CreatedAtAction(nameof(GetReviewsFor), new { reviewedId = dto.ReviewedId }, await MapReviewAsync(review));
         }
 
         [AllowAnonymous]
         [HttpGet("{reviewedId}")]
-        public IActionResult GetReviewsFor(string reviewedId)
+        public async Task<IActionResult> GetReviewsFor(string reviewedId)
         {
-            if (string.IsNullOrWhiteSpace(reviewedId)) return BadRequest();
-
-            Guid reviewedGuid = Guid.Empty;
-            var isGuid = Guid.TryParse(reviewedId, out reviewedGuid);
-
-            var q = _db.Reviews.AsQueryable();
-            if (isGuid)
+            if (string.IsNullOrWhiteSpace(reviewedId))
             {
-                q = q.Where(r => r.ReviewedUserId.HasValue && r.ReviewedUserId.Value == reviewedGuid);
-            }
-            else
-            {
-                q = q.Where(r => r.ReviewedExternalId == reviewedId);
+                return BadRequest();
             }
 
-            var reviewEntities = q.OrderByDescending(r => r.CreatedAt).ToList();
+            var resolvedReviewedUserId = await ResolveReviewedUserIdAsync(reviewedId);
+            var query = _db.Reviews.AsQueryable();
 
-            var outList = reviewEntities.Select(r =>
+            query = resolvedReviewedUserId.HasValue
+                ? query.Where(r => r.ReviewedUserId == resolvedReviewedUserId.Value)
+                : query.Where(r => r.ReviewedExternalId == reviewedId);
+
+            var reviews = await query
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            var mapped = new List<OutReviewDto>();
+            foreach (var review in reviews)
             {
-                string? reviewedName = null;
-                if (r.ReviewedUserId.HasValue)
-                {
-                    var u = _db.Users.FirstOrDefault(u => u.Id == r.ReviewedUserId.Value);
-                    reviewedName = u != null ? FormatDisplayNameHelper(u.Username) : null;
-                }
+                mapped.Add(await MapReviewAsync(review));
+            }
 
-                return new OutReviewDto
-                {
-                    Id = r.Id,
-                    ReviewerId = r.ReviewerId,
-                    ReviewerName = r.ReviewerName,
-                    ReviewedUserId = r.ReviewedUserId,
-                    ReviewedExternalId = r.ReviewedExternalId,
-                    ReviewedUserName = reviewedName,
-                    Rating = r.Rating,
-                    Content = r.Content,
-                    CreatedAt = r.CreatedAt
-                };
-            }).ToList();
-
-            return Ok(outList);
+            return Ok(mapped);
         }
 
         [Authorize]
         [HttpGet("authored")]
-        public IActionResult GetAuthored()
+        public async Task<IActionResult> GetAuthored()
         {
-            var username = User?.Identity?.Name;
-            if (username == null) return Unauthorized();
-            var user = _db.Users.FirstOrDefault(u => u.Username == username);
-            if (user == null) return Unauthorized();
-
-            var authoredEntities = _db.Reviews.Where(r => r.ReviewerId == user.Id || r.ReviewerName == username)
-                .OrderByDescending(r => r.CreatedAt)
-                .ToList();
-
-            var authored = authoredEntities.Select(r =>
+            var currentUser = await ResolveCurrentUserAsync();
+            if (currentUser == null)
             {
-                string? reviewedName = null;
-                if (r.ReviewedUserId.HasValue)
-                {
-                    var u = _db.Users.FirstOrDefault(u => u.Id == r.ReviewedUserId.Value);
-                    reviewedName = u != null ? FormatDisplayNameHelper(u.Username) : null;
-                }
+                return Unauthorized();
+            }
 
-                return new OutReviewDto
-                {
-                    Id = r.Id,
-                    ReviewerId = r.ReviewerId,
-                    ReviewerName = r.ReviewerName,
-                    ReviewedUserId = r.ReviewedUserId,
-                    ReviewedExternalId = r.ReviewedExternalId,
-                    ReviewedUserName = reviewedName,
-                    Rating = r.Rating,
-                    Content = r.Content,
-                    CreatedAt = r.CreatedAt
-                };
-            }).ToList();
+            var reviews = await _db.Reviews
+                .Where(r => r.ReviewerId == currentUser.Id || r.ReviewerName == currentUser.Username)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
 
-            return Ok(authored);
+            var mapped = new List<OutReviewDto>();
+            foreach (var review in reviews)
+            {
+                mapped.Add(await MapReviewAsync(review));
+            }
+
+            return Ok(mapped);
         }
 
         [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateReview(Guid id, [FromBody] CreateReviewDto dto)
         {
-            var username = User?.Identity?.Name;
-            if (username == null) return Unauthorized();
-            var user = _db.Users.FirstOrDefault(u => u.Username == username);
-            if (user == null) return Unauthorized();
+            var currentUser = await ResolveCurrentUserAsync();
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
 
-            var review = _db.Reviews.FirstOrDefault(r => r.Id == id);
-            if (review == null) return NotFound();
-            if (review.ReviewerId != user.Id) return Forbid();
+            var review = await _db.Reviews.FirstOrDefaultAsync(r => r.Id == id);
+            if (review == null)
+            {
+                return NotFound();
+            }
+
+            if (review.ReviewerId != currentUser.Id)
+            {
+                return Forbid();
+            }
 
             review.Rating = dto.Rating;
             review.Content = dto.Content;
             await _db.SaveChangesAsync();
 
-            return Ok(new OutReviewDto
-            {
-                Id = review.Id,
-                ReviewerId = review.ReviewerId,
-                ReviewerName = review.ReviewerName,
-                ReviewedUserId = review.ReviewedUserId,
-                ReviewedExternalId = review.ReviewedExternalId,
-                Rating = review.Rating,
-                Content = review.Content,
-                CreatedAt = review.CreatedAt
-            });
+            return Ok(await MapReviewAsync(review));
         }
 
         [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteReview(Guid id)
         {
-            var username = User?.Identity?.Name;
-            if (username == null) return Unauthorized();
-            var user = _db.Users.FirstOrDefault(u => u.Username == username);
-            if (user == null) return Unauthorized();
+            var currentUser = await ResolveCurrentUserAsync();
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
 
-            var review = _db.Reviews.FirstOrDefault(r => r.Id == id);
-            if (review == null) return NotFound();
-            if (review.ReviewerId != user.Id) return Forbid();
+            var review = await _db.Reviews.FirstOrDefaultAsync(r => r.Id == id);
+            if (review == null)
+            {
+                return NotFound();
+            }
+
+            if (review.ReviewerId != currentUser.Id)
+            {
+                return Forbid();
+            }
 
             _db.Reviews.Remove(review);
             await _db.SaveChangesAsync();
             return NoContent();
         }
 
+        [Authorize]
         [HttpGet("mine")]
-        public IActionResult GetReviewsForMe()
+        public async Task<IActionResult> GetReviewsForMe()
+        {
+            var currentUser = await ResolveCurrentUserAsync();
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            var reviews = await _db.Reviews
+                .Where(r => r.ReviewedUserId == currentUser.Id)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            var mapped = new List<OutReviewDto>();
+            foreach (var review in reviews)
+            {
+                mapped.Add(await MapReviewAsync(review));
+            }
+
+            return Ok(mapped);
+        }
+
+        private async Task<UserDMO?> ResolveCurrentUserAsync()
         {
             var username = User?.Identity?.Name;
-            if (username == null) return Unauthorized();
-            var user = _db.Users.FirstOrDefault(u => u.Username == username);
-            if (user == null) return Unauthorized();
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return null;
+            }
 
-            var q = _db.Reviews.Where(r => r.ReviewedUserId.HasValue && r.ReviewedUserId.Value == user.Id)
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new OutReviewDto
+            return await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+        }
+
+        private async Task<Guid?> ResolveReviewedUserIdAsync(string reviewedId)
+        {
+            if (!Guid.TryParse(reviewedId, out var parsed))
+            {
+                return null;
+            }
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsed);
+            if (user != null)
+            {
+                return user.Id;
+            }
+
+            var mentorProfile = await _db.MentorProfiles.FirstOrDefaultAsync(mp => mp.Id == parsed);
+            return mentorProfile?.UserId;
+        }
+
+        private async Task<OutReviewDto> MapReviewAsync(Review review)
+        {
+            return new OutReviewDto
+            {
+                Id = review.Id,
+                ReviewerId = review.ReviewerId,
+                ReviewerName = review.ReviewerName,
+                ReviewedUserId = review.ReviewedUserId,
+                ReviewedExternalId = review.ReviewedExternalId,
+                ReviewedUserName = await ResolveReviewedUserNameAsync(review),
+                Rating = review.Rating,
+                Content = review.Content,
+                CreatedAt = review.CreatedAt
+            };
+        }
+
+        private async Task<string?> ResolveReviewedUserNameAsync(Review review)
+        {
+            if (review.ReviewedUserId.HasValue)
+            {
+                var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == review.ReviewedUserId.Value);
+                return user != null ? FormatDisplayName(user.Username) : null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(review.ReviewedExternalId))
+            {
+                var user = await _db.Users.FirstOrDefaultAsync(u =>
+                    u.Id.ToString() == review.ReviewedExternalId || u.Username == review.ReviewedExternalId);
+                if (user != null)
                 {
-                    Id = r.Id,
-                    ReviewerId = r.ReviewerId,
-                    ReviewerName = r.ReviewerName,
-                    ReviewedUserId = r.ReviewedUserId,
-                    ReviewedExternalId = r.ReviewedExternalId,
-                    Rating = r.Rating,
-                    Content = r.Content,
-                    CreatedAt = r.CreatedAt
-                }).ToList();
+                    return FormatDisplayName(user.Username);
+                }
 
-            return Ok(q);
+                var mentorProfile = await _db.MentorProfiles
+                    .Include(mp => mp.User)
+                    .FirstOrDefaultAsync(mp =>
+                        mp.Id.ToString() == review.ReviewedExternalId ||
+                        mp.UserId.ToString() == review.ReviewedExternalId);
+                if (mentorProfile?.User != null)
+                {
+                    return FormatDisplayName(mentorProfile.User.Username);
+                }
+            }
+
+            return null;
+        }
+
+        private static string FormatDisplayName(string username)
+        {
+            var cleaned = System.Text.RegularExpressions.Regex.Replace(username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
+            var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length > 0)
+                {
+                    parts[i] = char.ToUpper(parts[i][0]) + parts[i][1..];
+                }
+            }
+
+            return parts.Length == 0 ? username ?? string.Empty : string.Join(' ', parts);
         }
     }
 }

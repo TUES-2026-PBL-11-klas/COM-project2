@@ -2,6 +2,7 @@ using System.Diagnostics;
 using OpenTelemetry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using PM.Data.Context;
 using PM.Data.Entities;
 using PM.Data.Observability;
@@ -13,10 +14,10 @@ namespace PM.Data.Repositories
         private readonly AppDbContext _context;
         private readonly ILogger<UserRepository> _logger;
 
-        public UserRepository(AppDbContext context, ILogger<UserRepository> logger)
+        public UserRepository(AppDbContext context, ILogger<UserRepository>? logger = null)
         {
             _context = context;
-            _logger  = logger;
+            _logger  = logger ?? NullLogger<UserRepository>.Instance;
         }
 
         public void AddUser(UserDMO user)

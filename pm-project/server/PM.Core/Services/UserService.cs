@@ -28,7 +28,8 @@ namespace PM.Core.Services
 
             var user = new UserDMO
             {
-                Username = request.Username
+                Username = request.Username,
+                Email = request.Email
             };
 
             user.PasswordHash = _hasher.HashPassword(user, request.Password);
@@ -59,6 +60,7 @@ namespace PM.Core.Services
             {
                 Id = user.Id,
                 Username = user.Username,
+                Email = user.Email,
                 Roles = user.Roles.Select(r => r.Name).ToList()
             };
         }
