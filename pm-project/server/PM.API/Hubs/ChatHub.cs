@@ -16,10 +16,10 @@ namespace PM.API.Hubs
             _chatService = chatService;
         }
 
-        public async Task SendMessage(Guid conversationId, Guid senderId, string content)
+        public async Task SendMessage(Guid chatId, Guid senderId, string content)
         {
-            var message = await _chatService.SendMessageAsync(conversationId, senderId, content);
-            await Clients.Group(conversationId.ToString()).SendAsync("ReceiveMessage", message, content);
+            var message = await _chatService.SendMessageAsync(chatId, senderId, content);
+            await Clients.Group(chatId.ToString()).SendAsync("ReceiveMessage", message, content);
         }
     }
 }

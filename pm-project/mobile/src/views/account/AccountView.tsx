@@ -3,7 +3,6 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { API_URL } from "../../constants/api";
-import { getMentors } from "../../viewmodels/home/homeViewModel";
 import { getToken, getUserId, removeToken } from "../../utils/storage";
 import reviewCache from "../../utils/reviewCache";
 import eventBus from "../../utils/eventBus";
@@ -72,13 +71,6 @@ export default function AccountView() {
                     item.reviewedUserName = jr.displayName ?? null;
                   }
                 } catch (e) { /* ignore */ }
-                if (!item.reviewedUserName) {
-                  try {
-                    const local = await getMentors();
-                    const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
-                    if (found) item.reviewedUserName = found.name;
-                  } catch (e) { }
-                }
               }
               return item;
             }));
@@ -125,23 +117,16 @@ export default function AccountView() {
               const data = await r2.json();
               const resolved = await Promise.all(data.map(async (item: any) => {
                 if (!item.reviewedUserName && item.reviewedExternalId) {
-                  try {
-                    const resp = await fetch(`${API_URL}/mentors/resolve/${item.reviewedExternalId}`);
-                    if (resp.ok) {
-                      const jr = await resp.json();
-                      item.reviewedUserName = jr.displayName ?? null;
-                    }
-                    if (!item.reviewedUserName) {
-                      try {
-                        const local = await getMentors();
-                        const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
-                        if (found) item.reviewedUserName = found.name;
-                      } catch (e) { }
-                    }
-                  } catch (e) { /* ignore */ }
-                }
-                return item;
-              }));
+                try {
+                  const resp = await fetch(`${API_URL}/mentors/resolve/${item.reviewedExternalId}`);
+                  if (resp.ok) {
+                    const jr = await resp.json();
+                    item.reviewedUserName = jr.displayName ?? null;
+                  }
+                } catch (e) { /* ignore */ }
+              }
+              return item;
+            }));
               setWritten(resolved);
               reviewCache.set('authored', resolved);
             }
@@ -168,13 +153,6 @@ export default function AccountView() {
                     item.reviewedUserName = jr.displayName ?? null;
                   }
                 } catch (e) { }
-                if (!item.reviewedUserName) {
-                  try {
-                    const local = await getMentors();
-                    const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
-                    if (found) item.reviewedUserName = found.name;
-                  } catch (e) { }
-                }
               }
               return item;
             }));

@@ -15,7 +15,6 @@ import eventBus from "../../utils/eventBus";
 import { API_URL } from "../../constants/api";
 import { getToken, getUserId, ensureUserId } from "../../utils/storage";
 import { useRouter } from "expo-router";
-import { getMentors } from "../../viewmodels/home/homeViewModel";
 
 type MessageItem = { id: string; sender: string; text: string; time: string };
 
@@ -99,10 +98,17 @@ export default function ChatView() {
   useEffect(() => {
     (async () => {
       try {
-        const m = await getMentors();
-        setMentors(m || []);
+        const res = await fetch(`${API_URL}/mentors/list`);
+        if (!res.ok) {
+          setMentors([]);
+          return;
+        }
+
+        const data = await res.json();
+        setMentors(data || []);
       } catch (err) {
         console.warn("Load mentors error", err);
+        setMentors([]);
       }
     })();
   }, []);
