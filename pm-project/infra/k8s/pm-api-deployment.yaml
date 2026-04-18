@@ -26,6 +26,8 @@ spec:
               value: "Development"
             - name: ASPNETCORE_URLS
               value: "http://+:5130"
+            - name: ALLOWED_CORS_ORIGINS
+              value: "http://localhost:8081"
             - name: Jwt__Key
               valueFrom:
                 secretKeyRef:

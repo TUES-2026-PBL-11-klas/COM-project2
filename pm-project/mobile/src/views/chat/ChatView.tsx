@@ -30,6 +30,24 @@ export default function ChatView() {
   const [messages, setMessages] = useState<MessageItem[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [mentors, setMentors] = useState<any[]>([]);
+  const [chats, setChats] = useState<any[] | null>(null);
+
+  const resolveChatName = useCallback((chat: any) => {
+    if (!chat) return "Mentor";
+    if (chat.name && !chat.name.startsWith("chat_")) {
+      if (/^\d+$/.test(String(chat.name))) {
+        const found = mentors.find((x) => String(x.id) === String(chat.name));
+        if (found) return found.name;
+      }
+      return chat.name;
+    }
+
+    const externalId = chat.externalMentorId || chat.user2Id || chat.user1Id || chat.id;
+    const found = mentors.find((x) => x.id === String(externalId) || String(x.id) === String(externalId));
+    if (found) return found.name;
+
+    return "Mentor";
+  }, [mentors]);
 
   const createAndOpen = useCallback(async (m: any) => {
     try { setSelectedMentorForChat?.(null); } catch {}
@@ -107,23 +125,6 @@ export default function ChatView() {
     })();
   }, []);
 
-  const resolveChatName = useCallback((chat: any) => {
-    if (!chat) return "Mentor";
-    if (chat.name && !chat.name.startsWith("chat_")) {
-      if (/^\d+$/.test(String(chat.name))) {
-        const found = mentors.find((x) => String(x.id) === String(chat.name));
-        if (found) return found.name;
-      }
-      return chat.name;
-    }
-
-    const externalId = chat.externalMentorId || chat.user2Id || chat.user1Id || chat.id;
-    const found = mentors.find((x) => x.id === String(externalId) || String(x.id) === String(externalId));
-    if (found) return found.name;
-
-    return "Mentor";
-  }, [mentors]);
-
   const chatExistsForMentor = (m: any) => {
     if (!m || !chats) return false;
     return chats.some((c: any) =>
@@ -189,7 +190,6 @@ export default function ChatView() {
     return () => { if (unsub1) unsub1(); if (unsub2) unsub2(); };
   }, []);
 
-  const [chats, setChats] = useState<any[] | null>(null);
 
   useEffect(() => {
     (async () => {
