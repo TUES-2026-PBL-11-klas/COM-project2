@@ -50,11 +50,11 @@ namespace PM.API.Controllers
             if (reviewerId == Guid.Empty) return BadRequest("reviewerId or auth required");
             if (string.IsNullOrWhiteSpace(dto.ReviewedId)) return BadRequest("reviewedId required");
 
-            // parse reviewed id as guid or treat as external id
             Guid reviewedGuid = Guid.Empty;
             var isGuid = Guid.TryParse(dto.ReviewedId, out reviewedGuid);
 
-            // prevent duplicate: same reviewer -> same reviewed
+            if (isGuid && reviewedGuid == reviewerId) return BadRequest("Cannot review yourself");
+
             var exists = _db.Reviews.Any(r => r.ReviewerId == reviewerId &&
                 ((isGuid && r.ReviewedUserId.HasValue && r.ReviewedUserId.Value == reviewedGuid) ||
                  (!isGuid && r.ReviewedExternalId == dto.ReviewedId)));
@@ -115,9 +115,6 @@ namespace PM.API.Controllers
                 q = q.Where(r => r.ReviewedExternalId == reviewedId);
             }
 
-            // FormatDisplayName helper moved to class-level FormatDisplayNameHelper
-
-            // materialize reviews first to avoid using local functions inside an expression tree (EF cannot translate that)
             var reviewEntities = q.OrderByDescending(r => r.CreatedAt).ToList();
 
             var outList = reviewEntities.Select(r =>
@@ -155,7 +152,6 @@ namespace PM.API.Controllers
             var user = _db.Users.FirstOrDefault(u => u.Username == username);
             if (user == null) return Unauthorized();
 
-            // materialize results first to avoid expression-tree-local-function translation issues
             var authoredEntities = _db.Reviews.Where(r => r.ReviewerId == user.Id || r.ReviewerName == username)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
@@ -199,7 +195,6 @@ namespace PM.API.Controllers
             if (review == null) return NotFound();
             if (review.ReviewerId != user.Id) return Forbid();
 
-            // allow updating rating and content
             review.Rating = dto.Rating;
             review.Content = dto.Content;
             await _db.SaveChangesAsync();

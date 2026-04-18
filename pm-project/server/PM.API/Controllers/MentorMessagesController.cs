@@ -12,23 +12,29 @@ namespace PM.API.Controllers
     {
         private readonly AppDbContext _db;
         private readonly IChatService _chatService;
+        private readonly ILogger<MentorMessagesController> _logger;
 
-        public MentorMessagesController(AppDbContext db, IChatService chatService)
+        public MentorMessagesController(AppDbContext db, IChatService chatService, ILogger<MentorMessagesController> logger)
         {
             _db = db;
             _chatService = chatService;
+            _logger = logger;
         }
 
         [HttpPost("{mentorId}/messages")]
         public async Task<IActionResult> SendToMentor(string mentorId, [FromBody] SendMessageDto dto)
         {
             var senderId = dto.SenderId;
-            if (senderId == Guid.Empty && User?.Identity?.IsAuthenticated == true)
+            Guid authUserId = Guid.Empty;
+            if (User?.Identity?.IsAuthenticated == true)
             {
                 var username = User.Identity.Name;
-                var user = _db.Users.FirstOrDefault(u => u.Username == username);
-                if (user != null)
-                    senderId = user.Id;
+                var authUser = _db.Users.FirstOrDefault(u => u.Username == username);
+                if (authUser != null)
+                {
+                    authUserId = authUser.Id;
+                    if (senderId == Guid.Empty) senderId = authUser.Id;
+                }
             }
 
             if (senderId == Guid.Empty)
@@ -41,19 +47,40 @@ namespace PM.API.Controllers
                 (isGuid && ((c.User1Id == senderId && c.User2Id == mentorGuid) || (c.User1Id == mentorGuid && c.User2Id == senderId)))
                 || (!isGuid && c.ExternalMentorId == mentorId && (c.User1Id == senderId || c.User2Id == senderId)));
 
+            Guid effectiveSenderId = authUserId != Guid.Empty ? authUserId : senderId;
+            Guid? resolvedMentorUser = null;
+            if (isGuid)
+            {
+                resolvedMentorUser = mentorGuid;
+            }
+            else
+            {
+                var maybeUser = _db.Users.FirstOrDefault(u => u.Username == mentorId || u.Id.ToString() == mentorId);
+                if (maybeUser != null) resolvedMentorUser = maybeUser.Id;
+                else
+                {
+                    var maybeMp = _db.MentorProfiles.FirstOrDefault(m => m.Id.ToString() == mentorId || m.UserId.ToString() == mentorId);
+                    if (maybeMp != null) resolvedMentorUser = maybeMp.UserId;
+                }
+            }
+
+            if (resolvedMentorUser.HasValue && resolvedMentorUser.Value == effectiveSenderId)
+            {
+                return BadRequest("cannot create chat targeting yourself");
+            }
+
             if (chat == null)
             {
                 chat = new Chat
                 {
-                    User1Id = senderId,
+                    User1Id = isGuid ? senderId : Guid.Empty,
                     User2Id = isGuid ? mentorGuid : Guid.Empty,
                     ExternalMentorId = isGuid ? null : mentorId,
-                    Name = isGuid ? $"chat_{senderId}_{mentorGuid}" : $"chat_{senderId}_ext_{mentorId}"
+                    Name = isGuid ? $"chat_{effectiveSenderId}_{mentorGuid}" : $"chat_{effectiveSenderId}_ext_{mentorId}"
                 };
                 _db.Chats.Add(chat);
                 await _db.SaveChangesAsync();
 
-                // increment mentor's students helped count when a new chat is created (internal mentor profiles)
                 try
                 {
                     if (isGuid)
@@ -63,13 +90,14 @@ namespace PM.API.Controllers
                         {
                             mp.StudentsHelped += 1;
                             await _db.SaveChangesAsync();
+                            _logger.LogInformation("SendToMentor: created chat {ChatId} sender={Sender} mentor={Mentor} incremented StudentsHelped={Count}", chat.Id, senderId, mentorGuid, mp.StudentsHelped);
                         }
                     }
                 }
                 catch { }
             }
 
-            var message = await _chatService.SendMessageAsync(chat.Id, senderId, dto.Content);
+            var message = await _chatService.SendMessageAsync(chat.Id, effectiveSenderId, dto.Content);
 
             var outMsg = new OutMessageDto
             {
@@ -80,18 +108,23 @@ namespace PM.API.Controllers
                 ChatId = message.ChatId
             };
 
-            return CreatedAtAction(nameof(GetMessages), new { mentorId = mentorId, senderId = senderId.ToString() }, outMsg);
+            return CreatedAtAction(nameof(GetMessages), new { mentorId = mentorId, senderId = effectiveSenderId.ToString() }, outMsg);
         }
 
         [HttpPost("{mentorId}/start")]
         public async Task<IActionResult> StartChat(string mentorId, [FromBody] PM.Core.DTOs.SendMessageDto dto)
         {
             var senderId = dto?.SenderId ?? Guid.Empty;
-            if (senderId == Guid.Empty && User?.Identity?.IsAuthenticated == true)
+            Guid authUserIdLocal = Guid.Empty;
+            if (User?.Identity?.IsAuthenticated == true)
             {
-                var username = User.Identity.Name;
-                var user = _db.Users.FirstOrDefault(u => u.Username == username);
-                if (user != null) senderId = user.Id;
+                var usernameLocal = User.Identity.Name;
+                var authUserLocal = _db.Users.FirstOrDefault(u => u.Username == usernameLocal);
+                if (authUserLocal != null)
+                {
+                    authUserIdLocal = authUserLocal.Id;
+                    if (senderId == Guid.Empty) senderId = authUserLocal.Id;
+                }
             }
 
             if (senderId == Guid.Empty)
@@ -105,14 +138,35 @@ namespace PM.API.Controllers
                 || (!isGuidLocal && c.ExternalMentorId == mentorId && (c.User1Id == senderId || c.User2Id == senderId)));
 
             var created = false;
+            var effectiveSenderIdLocal = authUserIdLocal != Guid.Empty ? authUserIdLocal : senderId;
+            Guid? resolvedMentorUserLocal = null;
+            if (isGuidLocal)
+            {
+                resolvedMentorUserLocal = mentorGuid;
+            }
+            else
+            {
+                var maybeUserLocal = _db.Users.FirstOrDefault(u => u.Username == mentorId || u.Id.ToString() == mentorId);
+                if (maybeUserLocal != null) resolvedMentorUserLocal = maybeUserLocal.Id;
+                else
+                {
+                    var maybeMpLocal = _db.MentorProfiles.FirstOrDefault(m => m.Id.ToString() == mentorId || m.UserId.ToString() == mentorId);
+                    if (maybeMpLocal != null) resolvedMentorUserLocal = maybeMpLocal.UserId;
+                }
+            }
+
+            if (resolvedMentorUserLocal.HasValue && resolvedMentorUserLocal.Value == effectiveSenderIdLocal)
+            {
+                return BadRequest("cannot create chat targeting yourself");
+            }
             if (chat == null)
             {
                 chat = new Chat
                 {
-                    User1Id = senderId,
+                    User1Id = isGuidLocal ? senderId : Guid.Empty,
                     User2Id = isGuidLocal ? mentorGuid : Guid.Empty,
                     ExternalMentorId = isGuidLocal ? null : mentorId,
-                    Name = isGuidLocal ? $"chat_{senderId}_{mentorGuid}" : $"chat_{senderId}_ext_{mentorId}"
+                    Name = isGuidLocal ? $"chat_{effectiveSenderIdLocal}_{mentorGuid}" : $"chat_{effectiveSenderIdLocal}_ext_{mentorId}"
                 };
                 _db.Chats.Add(chat);
                 await _db.SaveChangesAsync();

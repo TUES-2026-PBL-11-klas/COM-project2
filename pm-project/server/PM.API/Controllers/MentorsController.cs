@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using PM.Core.DTOs;
 using PM.Data.Context;
 using PM.Data.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using PM.API.Hubs;
 
 namespace PM.API.Controllers
 {
@@ -12,11 +15,13 @@ namespace PM.API.Controllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<MentorsController> _logger;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public MentorsController(AppDbContext db, ILogger<MentorsController> logger)
+        public MentorsController(AppDbContext db, ILogger<MentorsController> logger, IHubContext<ChatHub> hubContext)
         {
             _db = db;
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         [AllowAnonymous]
@@ -42,7 +47,6 @@ namespace PM.API.Controllers
                     avg = reviews.Average(r => (double)r.rating);
                 }
 
-                // derive a friendly display name from username (e.g. ivan.petrov -> Ivan Petrov)
                 string? displayName = null;
                 if (user?.Username != null)
                 {
@@ -62,13 +66,13 @@ namespace PM.API.Controllers
 
                 return new
                 {
-                    // expose the mentor's user id as the canonical id (used when starting chats)
                     id = mp.UserId.ToString(),
                     profileId = mp.Id.ToString(),
                     userId = mp.UserId.ToString(),
                     name = displayName,
                     subjects = mp.Subjects,
                     students = mp.StudentsHelped,
+                    createdAt = mp.CreatedAt,
                     rating = avg,
                     avatar = avatarUrl,
                     reviews = reviews
@@ -81,7 +85,6 @@ namespace PM.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateMentor([FromBody] CreateMentorDto dto)
         {
-            // Accept either an authenticated user or a provided userId in the payload.
             PM.Data.Entities.UserDMO? user = null;
 
             var username = User?.Identity?.Name;
@@ -123,7 +126,6 @@ namespace PM.API.Controllers
                 _logger.LogDebug("CreateMentor: updated MentorProfile for user {UserId}", user.Id);
             }
 
-            // ensure Mentor role (create if missing)
             var mentorRole = _db.Roles.FirstOrDefault(r => r.Name == "Mentor");
             if (mentorRole == null)
             {
@@ -139,8 +141,75 @@ namespace PM.API.Controllers
 
             await _db.SaveChangesAsync();
 
-            // Do not create a chat when a user becomes a mentor.
-            // Chats will be created when other users initiate conversations.
+            return Ok(new { userId = user.Id, username = user.Username, isMentor = true });
+        }
+
+        [Authorize]
+        [HttpPost("resign")]
+        public async Task<IActionResult> ResignAsMentor()
+        {
+            var username = User?.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(username)) return Unauthorized();
+
+            var user = _db.Users.Include(u => u.Roles).FirstOrDefault(u => u.Username == username);
+            if (user == null) return NotFound();
+
+            var roles = user.Roles;
+            if (roles != null)
+            {
+                var toRemove = roles.FirstOrDefault(r => r.Name == "Mentor");
+                if (toRemove != null)
+                {
+                    roles.Remove(toRemove);
+                }
+            }
+
+            var existingProfile = _db.MentorProfiles.FirstOrDefault(m => m.UserId == user.Id);
+            var deletedChatIds = new List<Guid>();
+            if (existingProfile != null)
+            {
+                var profileIdStr = existingProfile.Id.ToString();
+                var userIdStr = user.Id.ToString();
+                var mentorGuid = user.Id;
+
+                var chats = _db.Chats
+                    .Include(c => c.Messages)
+                    .Where(c =>
+                        (!string.IsNullOrEmpty(c.ExternalMentorId) && (c.ExternalMentorId == profileIdStr || c.ExternalMentorId == userIdStr))
+                        || c.User1Id == mentorGuid
+                        || c.User2Id == mentorGuid
+                    ).ToList();
+
+                foreach (var c in chats)
+                {
+                    if (c.Messages != null && c.Messages.Any())
+                    {
+                        _db.Messages.RemoveRange(c.Messages);
+                    }
+                    deletedChatIds.Add(c.Id);
+                    _db.Chats.Remove(c);
+                }
+
+                var remainingMessages = _db.Messages.Where(m => m.SenderId == user.Id && !deletedChatIds.Contains(m.ChatId)).ToList();
+                if (remainingMessages.Any())
+                {
+                    _db.Messages.RemoveRange(remainingMessages);
+                }
+
+                _db.MentorProfiles.Remove(existingProfile);
+            }
+
+            await _db.SaveChangesAsync();
+
+            try
+            {
+                if (deletedChatIds != null && deletedChatIds.Any())
+                {
+                    await _hubContext.Clients.All.SendAsync("ChatsDeleted", deletedChatIds);
+                }
+            }
+            catch { }
+
             return Ok(new { userId = user.Id, username = user.Username });
         }
 
@@ -150,7 +219,6 @@ namespace PM.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(id)) return BadRequest();
 
-            // try guid
             Guid g;
             if (Guid.TryParse(id, out g))
             {
@@ -164,7 +232,6 @@ namespace PM.API.Controllers
                 }
             }
 
-            // try by username
             var u2 = _db.Users.FirstOrDefault(u => u.Username == id);
             if (u2 != null)
             {
@@ -174,7 +241,6 @@ namespace PM.API.Controllers
                 return Ok(new { displayName = string.Join(' ', parts) });
             }
 
-            // try mentor profiles (match by MentorProfile.Id or MentorProfile.UserId)
             var mp = _db.MentorProfiles.FirstOrDefault(m => m.Id.ToString() == id || m.UserId.ToString() == id);
             if (mp != null)
             {
@@ -188,7 +254,6 @@ namespace PM.API.Controllers
                 }
             }
 
-            // fallback: nothing found
             return Ok(new { displayName = (string?)null });
         }
     }

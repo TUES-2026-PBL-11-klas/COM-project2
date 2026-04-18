@@ -9,7 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
 import { useMentorChat } from "../../contexts/MentorChatContext";
+import eventBus from "../../utils/eventBus";
 import { API_URL } from "../../constants/api";
 import { getToken, getUserId, ensureUserId } from "../../utils/storage";
 import { useRouter } from "expo-router";
@@ -21,7 +23,6 @@ export default function ChatView() {
   const { selectedMentorForChat, setSelectedMentorForChat } = useMentorChat();
   const router = useRouter();
 
-  // local active chat state (shows chat messages). When null we show chat list.
   const [activeChat, setActiveChat] = useState<any | null>(null);
 
   const initialMessages: MessageItem[] = [];
@@ -30,7 +31,6 @@ export default function ChatView() {
   const [draft, setDraft] = useState("");
   const [mentors, setMentors] = useState<any[]>([]);
 
-  // create a chat on server (no starter message) and open it
   const createAndOpen = async (m: any) => {
     try { setSelectedMentorForChat?.(null); } catch {}
 
@@ -44,7 +44,6 @@ export default function ChatView() {
       const body: any = { mentorId };
       if (senderId) body.senderId = senderId;
 
-      // prevent creating a chat with yourself
       if (String(mentorId) && senderId && String(mentorId) === String(senderId)) {
         console.warn('Cannot create a chat with yourself');
         return;
@@ -65,21 +64,34 @@ export default function ChatView() {
       }
 
       const created = await res.json();
-      // refresh chats list
+      let me: any = null;
       if (token) {
+        try {
+          const rMe = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+          if (rMe.ok) me = await rMe.json();
+        } catch (e) { }
+
         const r2 = await fetch(`${API_URL}/chats/mine`, { headers: { Authorization: `Bearer ${token}` } });
         if (r2.ok) setChats(await r2.json());
       }
 
-      // open the created chat
-      setActiveChat(created);
+      try {
+        const myName = me && me.username ? String(me.username).toLowerCase() : null;
+        const myId = me && me.id ? String(me.id) : null;
+        const createdName = (resolveChatName(created) || '').toLowerCase();
+        if ((myId && created.user1Id && String(created.user1Id) === myId && created.user2Id && String(created.user2Id) === myId)
+          || (myName && createdName === myName)) {
+          console.warn('Created chat resolves to current user; not opening.');
+        } else {
+          setActiveChat(created);
+        }
+      } catch (e) { setActiveChat(created); }
     } catch (err) {
       console.warn("Create/open chat error", err);
     }
   };
 
   useEffect(() => {
-    // if a mentor was selected elsewhere ("Start Chatting"), create the chat on server and open it
     if (!selectedMentorForChat) return;
     createAndOpen(selectedMentorForChat);
   }, [selectedMentorForChat]);
@@ -97,9 +109,7 @@ export default function ChatView() {
 
   const resolveChatName = (chat: any) => {
     if (!chat) return "Mentor";
-    // prefer explicit name if it looks human
     if (chat.name && !chat.name.startsWith("chat_")) {
-      // if name is a numeric id (e.g. "1"), try resolve from local mentor list
       if (/^\d+$/.test(String(chat.name))) {
         const found = mentors.find((x) => String(x.id) === String(chat.name));
         if (found) return found.name;
@@ -129,15 +139,13 @@ export default function ChatView() {
     (async () => {
       if (!activeChat) return;
       try {
-        const senderId = await ensureUserId();
+        const myId = await ensureUserId();
         const token = await getToken();
 
-        if (!senderId && !token) return;
+        if (!myId && !token) return;
 
-        const mentorId = activeChat.externalMentorId || activeChat.user2Id || activeChat.user1Id;
-        const url = senderId
-          ? `${API_URL}/mentors/${mentorId}/messages?senderId=${senderId}`
-          : `${API_URL}/mentors/${mentorId}/messages`;
+        const chatId = activeChat.id;
+        const url = `${API_URL}/chats/${chatId}/messages`;
 
         const res = await fetch(url, {
           headers: {
@@ -154,7 +162,7 @@ export default function ChatView() {
         const msgs = await res.json();
         const mapped = msgs.map((m: any) => ({
           id: m.id,
-          sender: m.senderId === senderId ? "You" : resolveChatName(activeChat),
+          sender: myId && m.senderId === myId ? "You" : resolveChatName(activeChat),
           text: m.content,
           time: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         }));
@@ -165,6 +173,21 @@ export default function ChatView() {
       }
     })();
   }, [activeChat]);
+
+  useEffect(() => {
+    const unsub1 = eventBus.on('chatsUpdated', (payload: any) => {
+      try { setChats(payload || []); } catch (e) {}
+    });
+    const unsub2 = eventBus.on('mentorResigned', async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const r = await fetch(`${API_URL}/chats/mine`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) setChats(await r.json());
+      } catch (e) { }
+    });
+    return () => { if (unsub1) unsub1(); if (unsub2) unsub2(); };
+  }, []);
 
   const [chats, setChats] = useState<any[] | null>(null);
 
@@ -177,6 +200,12 @@ export default function ChatView() {
       try {
         const token = await getToken();
         if (!token) return;
+        let me: any = null;
+        try {
+          const rMe = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+          if (rMe.ok) me = await rMe.json();
+        } catch (e) { /* ignore */ }
+
         const res = await fetch(`${API_URL}/chats/mine`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -185,7 +214,38 @@ export default function ChatView() {
           return;
         }
         const data = await res.json();
-        setChats(data);
+        const filtered = (data || []).filter((c: any) => {
+          try {
+            const name = (resolveChatName(c) || '').toLowerCase();
+            const myName = (me && me.username ? String(me.username) : '').toLowerCase();
+            const myId = me && me.id ? String(me.id) : null;
+            const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+
+            if (!myId && !myName) return true;
+
+            if (myName && name === myName) return false;
+
+            if (myId && c.id && String(c.id) === myId) return false;
+
+            if (myId && c.externalMentorId && String(c.externalMentorId) === myId) return false;
+
+            if (myId && c.ownerId && String(c.ownerId) === myId) return false;
+
+            const u1 = c.user1Id ? String(c.user1Id) : null;
+            const u2 = c.user2Id ? String(c.user2Id) : null;
+            if (myId) {
+              if (u1 === myId && (!u2 || u2 === myId || u2 === EMPTY_GUID)) return false;
+              if (u2 === myId && (!u1 || u1 === myId || u1 === EMPTY_GUID)) return false;
+            }
+
+            if (myId && c.name && String(c.name).toLowerCase().includes(myId.toLowerCase())) return false;
+
+            if (myName && c.name && String(c.name).toLowerCase().includes(myName)) return false;
+
+          } catch (e) { }
+          return true;
+        });
+        setChats(filtered);
       } catch (err) {
         console.warn("Load chats error", err);
       }
@@ -221,9 +281,9 @@ export default function ChatView() {
         const body: any = { content: trimmed };
         if (senderId) body.senderId = senderId;
 
-        const mentorId = activeChat.externalMentorId || activeChat.user2Id || activeChat.user1Id;
+        const chatId = activeChat.id;
 
-        const res = await fetch(`${API_URL}/mentors/${mentorId}/messages`, {
+        const res = await fetch(`${API_URL}/chats/${chatId}/messages`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -256,7 +316,7 @@ export default function ChatView() {
             <Text>Loading...</Text>
           ) : chats.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>💬</Text>
+              <MaterialIcons name="chat" size={48} color="#94A3B8" />
               <Text style={styles.emptyText}>Start chatting</Text>
               {selectedMentorForChat && chatExistsForMentor(selectedMentorForChat) ? (
                 <View style={[styles.startChatButton, styles.disabledButton]}>
@@ -292,17 +352,9 @@ export default function ChatView() {
                   <View style={styles.chatCardLarge}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       {/* Tuka e avatara */}
-                      <View style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        backgroundColor: "rgba(255,255,255,0.2)",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 12,
-                      }}>
-                        <Text style={{ color: "#fff", fontWeight: "700" }}>
-                          {resolveChatName(item).charAt(0)}
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>
+                          {String(resolveChatName(item) || "").trim().split(" ")[0]?.charAt(0).toUpperCase()}
                         </Text>
                       </View>
 
@@ -484,6 +536,20 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     marginBottom: 4,
+    fontSize: 18,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  avatarText: {
+    color: "#1D4ED8",
+    fontWeight: "700",
     fontSize: 18,
   },
   title: {

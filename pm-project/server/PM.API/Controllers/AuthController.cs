@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using PM.Core.DTOs;
 using PM.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace PM.API.Controllers
@@ -70,14 +71,14 @@ namespace PM.API.Controllers
             var name = User?.Identity?.Name;
             _logger.LogInformation("GetMe called for " + name);
 
-            var user = _context.Users.FirstOrDefault(u => u.Username == name);
+            var user = _context.Users.Include(u => u.Roles).FirstOrDefault(u => u.Username == name);
             if (user == null)
                 return NotFound();
 
             var roles = user.Roles?.Select(r => r.Name).ToList() ?? new List<string>();
+            var isMentor = roles.Any(r => string.Equals(r, "Mentor", System.StringComparison.OrdinalIgnoreCase));
 
-            return Ok(new { Username = name, Id = user.Id, Roles = roles });
+            return Ok(new { Username = name, Id = user.Id, Roles = roles, IsMentor = isMentor });
         }
-        // tva za test prosto
     }
 }

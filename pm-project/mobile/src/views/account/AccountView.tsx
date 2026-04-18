@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialIcons } from '@expo/vector-icons';
 import { API_URL } from "../../constants/api";
 import { getMentors } from "../../viewmodels/home/homeViewModel";
 import { getToken, getUserId, removeToken } from "../../utils/storage";
@@ -26,6 +28,7 @@ export default function AccountView() {
   const [about, setAbout] = useState<OutReview[]>([]);
   const [hasToken, setHasToken] = useState(false);
   const [isMentor, setIsMentor] = useState(false);
+  const [showThank, setShowThank] = useState(false);
   const [fetchAuthError, setFetchAuthError] = useState<string | null>(null);
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,12 +48,13 @@ export default function AccountView() {
           if (r.ok) {
             const j = await r.json();
             setUsername(j.username || null);
-            setIsMentor(Array.isArray(j.roles) ? j.roles.includes('Mentor') || j.roles.includes('mentor') : false);
+            const mentorFlag = j.isMentor === true;
+            setIsMentor(mentorFlag);
+            setShowThank(mentorFlag);
             if (!uid && j.id) setUserId(j.id);
           }
         }
 
-        // fetch reviews I've written (authored)
         const authoredCacheKey = `authored`;
         const authoredCached = reviewCache.get(authoredCacheKey);
         if (authoredCached) setWritten(authoredCached);
@@ -68,7 +72,6 @@ export default function AccountView() {
                     item.reviewedUserName = jr.displayName ?? null;
                   }
                 } catch (e) { /* ignore */ }
-                // fallback: try local mentor list (static client data) when resolver didn't find a name
                 if (!item.reviewedUserName) {
                   try {
                     const local = await getMentors();
@@ -86,7 +89,6 @@ export default function AccountView() {
             setFetchAuthError(`Failed to load authored reviews: ${r2.status}`);
           }
         } else {
-          // try a permissive fetch in case server allows authored lookup without auth
           try {
             const r2 = await fetch(`${API_URL}/reviews/authored`);
             if (r2.ok) {
@@ -99,7 +101,6 @@ export default function AccountView() {
           }
         }
 
-        // fetch reviews about me (if we have an id)
         if (uid) {
           const r3 = await fetch(`${API_URL}/reviews/${uid}`);
           if (r3.ok) setAbout(await r3.json());
@@ -109,14 +110,13 @@ export default function AccountView() {
       }
     })();
 
-    // listen for mentorCreated events to update UI
     const unsubMentor = eventBus.on('mentorCreated', (payload: any) => {
       try {
         if (!payload) return;
         const createdUserId = payload.userId || payload.userId === 0 ? String(payload.userId) : null;
         if (createdUserId && String(createdUserId) === String(userId)) {
           setIsMentor(true);
-          // refresh authored reviews
+          setShowThank(true);
           (async () => {
             const token = await getToken();
             if (!token) return;
@@ -150,13 +150,11 @@ export default function AccountView() {
       } catch (e) { }
     });
 
-    // listen for review updates to refresh lists immediately
     const unsubReview = eventBus.on('reviewUpdated', async (payload: any) => {
       try {
         const token = await getToken();
         const uid = await getUserId();
 
-        // refresh authored reviews
         if (token) {
           const r2 = await fetch(`${API_URL}/reviews/authored`, { headers: { Authorization: `Bearer ${token}` } });
           if (r2.ok) {
@@ -185,7 +183,6 @@ export default function AccountView() {
           }
         }
 
-        // refresh reviews about me
         if (uid) {
           const r3 = await fetch(`${API_URL}/reviews/${uid}`);
           if (r3.ok) setAbout(await r3.json());
@@ -204,6 +201,53 @@ export default function AccountView() {
     } finally {
       router.replace("/auth/login");
     }
+  };
+
+  const handleResign = async () => {
+    Alert.alert(
+      "Stop being a mentor",
+      "Are you sure you want to stop being a mentor? This will remove your mentor profile and subjects.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Yes, stop', style: 'destructive', onPress: async () => {
+          try {
+            const token = await getToken();
+            if (!token) return Alert.alert('Not signed in');
+            const res = await fetch(`${API_URL}/mentors/resign`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) {
+              const text = await res.text();
+              console.warn('Resign failed', res.status, text);
+              return Alert.alert('Failed', 'Could not stop being a mentor');
+            }
+            setIsMentor(false);
+            setShowThank(false);
+            try {
+              if (userId) await AsyncStorage.removeItem(`mentor_thank_shown:${userId}`);
+            } catch (e) { }
+
+            try {
+              const token2 = await getToken();
+              if (token2) {
+                const rChats = await fetch(`${API_URL}/chats/mine`, { headers: { Authorization: `Bearer ${token2}` } });
+                if (rChats.ok) {
+                  const chats = await rChats.json();
+                  try { eventBus.emit('chatsUpdated', chats); } catch {}
+                }
+              }
+              const rMentors = await fetch(`${API_URL}/mentors/list`);
+              if (rMentors.ok) {
+                const mentors = await rMentors.json();
+                try { eventBus.emit('mentorsUpdated', mentors); } catch {}
+              }
+            } catch (e) { }
+            try { eventBus.emit('mentorResigned', { userId }); } catch {};
+          } catch (err) {
+            console.warn(err);
+            Alert.alert('Error', 'An error occurred');
+          }
+        }}
+      ]
+    );
   };
 
   return (
@@ -229,8 +273,26 @@ export default function AccountView() {
             </View>
           ) : (
             <View style={styles.mentorPromoActive}>
-              <Text style={styles.mentorPromoTitle}>Thank you for being a mentor</Text>
-              <Text style={styles.mentorPromoText}>Your mentor profile is active — learners can message and review you.</Text>
+              {showThank ? (
+                <>
+                  <Text style={styles.mentorPromoTitle}>Thank you for sharing your knowledge</Text>
+                  <Text style={styles.mentorPromoText}>Your mentor profile is active — learners can message and review you.</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.mentorPromoTitle}>Your mentor profile is active</Text>
+                  <Text style={styles.mentorPromoText}>Learners can message and review you.</Text>
+                </>
+              )}
+              <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                <TouchableOpacity style={styles.mentorButton} onPress={() => router.push('/mentor/create')}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Change subjects</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.mentorButton, { backgroundColor: '#EF4444', marginLeft: 10 }]} onPress={handleResign}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Stop being a mentor</Text>
+                </TouchableOpacity>
+                
+              </View>
             </View>
           )}
         <Text style={styles.sectionTitle}>Reviews I Wrote</Text>
@@ -248,7 +310,7 @@ export default function AccountView() {
               <Text style={styles.reviewMeta}>To: {r.reviewedUserName || r.reviewedExternalId || (r.reviewedUserId ? String(r.reviewedUserId).slice(0,8) : "Unknown")} • {new Date(r.createdAt).toLocaleDateString()}</Text>
               <View style={{ flexDirection: 'row', marginBottom: 8 }}>
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Text key={i} style={{ color: '#FACC15', marginRight: 4 }}>{i < r.rating ? '★' : '☆'}</Text>
+                  <MaterialIcons key={i} name={i < r.rating ? 'star' : 'star-border'} size={16} color="#FACC15" style={{ marginRight: 4 }} />
                 ))}
               </View>
               {editingId === r.id ? (
@@ -256,14 +318,13 @@ export default function AccountView() {
                   <View style={{ flexDirection: 'row', marginBottom: 8 }}>
                     {[1,2,3,4,5].map((v) => (
                       <TouchableOpacity key={v} onPress={() => setEditRating(v)} style={{ marginRight: 8 }}>
-                        <Text style={{ fontSize: 20, color: editRating >= v ? '#FACC15' : '#CBD5E1' }}>{editRating >= v ? '★' : '☆'}</Text>
+                        <MaterialIcons name={editRating >= v ? 'star' : 'star-border'} size={20} color={editRating >= v ? '#FACC15' : '#CBD5E1'} />
                       </TouchableOpacity>
                     ))}
                   </View>
                   <TextInput value={editContent} onChangeText={setEditContent} style={{ backgroundColor: '#F8FAFC', borderRadius: 8, padding: 8, marginBottom: 8 }} multiline />
                   <View style={{ flexDirection: 'row' }}>
                     <TouchableOpacity style={[styles.saveButton, { marginRight: 8 }]} onPress={async () => {
-                        // save
                         try {
                           const token = await getToken();
                           if (!token) {
@@ -281,7 +342,6 @@ export default function AccountView() {
                           }
                           const updated = await res.json();
                           setWritten(prev => prev.map(p => p.id === r.id ? { ...p, rating: updated.rating, content: updated.content } : p));
-                          // notify other views (e.g., ReviewsView) to refresh
                           try { eventBus.emit('reviewUpdated', { reviewedExternalId: updated.reviewedExternalId, reviewedUserId: updated.reviewedUserId }); } catch {}
                           setEditingId(null);
                         } catch (err) { console.warn(err); }
@@ -305,7 +365,6 @@ export default function AccountView() {
                         const token = await getToken();
                         const res = await fetch(`${API_URL}/reviews/${r.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
                         if (res.status === 204) setWritten(prev => prev.filter(p => p.id !== r.id));
-                          // notify other views to refresh
                           try { eventBus.emit('reviewUpdated', { reviewedExternalId: r.reviewedExternalId, reviewedUserId: r.reviewedUserId }); } catch {}
                       } catch (err) { console.warn(err); }
                     }}>

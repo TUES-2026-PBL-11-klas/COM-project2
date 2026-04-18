@@ -7,11 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import eventBus from "../../../utils/eventBus";
 import { API_URL } from "../../../constants/api";
-import { getUserId, ensureUserId } from "../../../utils/storage";
+import { getUserId, ensureUserId, getToken } from "../../../utils/storage";
 import { useMentorReviews } from "../../../contexts/MentorReviewsContext";
 import { useMentorChat } from "../../../contexts/MentorChatContext";
 
@@ -26,6 +28,8 @@ export default function HomeView() {
   useEffect(() => {
     load();
     const unsub = eventBus.on('reviewUpdated', () => { try { load(); } catch {} });
+    const unsub2 = eventBus.on('mentorsUpdated', (payload: any) => { try { setMentors((payload || [])); } catch {} });
+    const unsub3 = eventBus.on('mentorResigned', () => { try { load(); } catch {} });
     return () => { if (unsub) unsub(); };
   }, []);
 
@@ -34,7 +38,6 @@ export default function HomeView() {
       const res = await fetch(`${API_URL}/mentors/list`);
       if (res.ok) {
         const data = await res.json();
-        // normalize mentors: expose `subjectsArray` (split comma-separated subjects)
         const mapped = data.map((m: any) => {
           const arr = String(m.subjects || m.subject || '').split(',').map((s: string) => s.trim()).filter(Boolean);
           return { ...m, subjectsArray: arr };
@@ -43,7 +46,6 @@ export default function HomeView() {
         return;
       }
     } catch (e) { }
-    // fallback to local data when API fails
     try {
       const local = await import("../../../viewmodels/home/homeViewModel");
       const data = await local.getMentors();
@@ -51,7 +53,6 @@ export default function HomeView() {
     } catch (e) { setMentors([]); }
   };
 
-  // build a list of subjects from mentors' `subjectsArray`
   const subjects = Array.from(
     new Set(
       mentors.flatMap((m) => {
@@ -71,7 +72,6 @@ export default function HomeView() {
     return matchesSearch && matchesSubject;
   });
 
-  // logout moved to Account tab
 
   return (
     <View style={styles.container}>
@@ -138,7 +138,7 @@ export default function HomeView() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🔍</Text>
+            <MaterialIcons name="search" size={48} color="#94A3B8" />
             <Text style={styles.emptyText}>No mentors found</Text>
             <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
           </View>
@@ -147,13 +147,11 @@ export default function HomeView() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                {item.avatar ? (
-                  <Image source={{ uri: item.avatar }} style={{ width: 48, height: 48, borderRadius: 24, marginRight: 12 }} />
-                ) : (
-                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EFF6FF', marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: '#2563EB', fontWeight: '700' }}>{(item.name || 'U').charAt(0)}</Text>
-                  </View>
-                )}
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {(String(item.name || 'U').trim().split(' ')[0]?.charAt(0) || 'U').toUpperCase()}
+                  </Text>
+                </View>
                 <View style={styles.mentorInfo}>
                   <Text style={styles.name}>{item.name}</Text>
                   <View style={styles.subjectsRow}>
@@ -175,7 +173,7 @@ export default function HomeView() {
                     );
                   })()}
                 <View style={styles.ratingBadge}>
-                  <Text style={styles.ratingIcon}>⭐</Text>
+                  <MaterialIcons name="star" size={14} color="#F59E0B" />
                   <Text style={styles.rating}>{item.rating ? (Math.round((item.rating) * 10) / 10).toFixed(1) : "-"}</Text>
                 </View>
               </View>
@@ -183,12 +181,19 @@ export default function HomeView() {
 
             <View style={styles.statsRowSection}>
               <View style={styles.stat}>
-                <Text style={styles.statIcon}>👨‍🎓</Text>
-                <Text style={styles.statText}>{item.students} students</Text>
+                <MaterialIcons name="school" size={16} color="#2563EB" style={{ marginRight: 8 }} />
+                <View>
+                  <Text style={styles.statText}>{item.students} students</Text>
+                </View>
               </View>
               <View style={styles.stat}>
-                <Text style={styles.statIcon}>⏱️</Text>
-                <Text style={styles.statText}>{item.experience}</Text>
+                <MaterialIcons name="access-time" size={16} color="#64748B" style={{ marginRight: 8 }} />
+                <View style={styles.statRightColumn}>
+                  <Text style={styles.statText}>{item.experience}</Text>
+                  {item.createdAt ? (
+                    <Text style={[styles.statText, styles.statDateCompact]}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                  ) : null}
+                </View>
               </View>
             </View>
 
@@ -198,10 +203,33 @@ export default function HomeView() {
                 onPress={() => {
                   (async () => {
                     try {
+                      const token = await getToken();
                       const uid = await ensureUserId();
+
+                      let myRealId: string | null = null;
+                      if (token) {
+                        try {
+                          const rMe = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+                          if (rMe.ok) {
+                            const me = await rMe.json();
+                            myRealId = String(me.id);
+                          }
+                        } catch { }
+                      }
+
+                      const targetId = String(item.userId || item.id || '');
+
+                      if (targetId && (targetId === myRealId || targetId === uid)) {
+                        Alert.alert(
+                          "Invalid action",
+                          "You cannot chat with yourself."
+                        );
+                        return;
+                      }
+
                       const res = await fetch(`${API_URL}/chats`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ mentorId: item.userId || item.id, senderId: uid })
+                        method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                          body: JSON.stringify({ mentorId: targetId, senderId: uid })
                       });
                       if (!res.ok) {
                         console.warn('Start chat failed', res.status, await res.text());
@@ -209,6 +237,8 @@ export default function HomeView() {
                         const created = await res.json();
                         try { setSelectedMentorForChat(item); } catch {}
                         setSelectedMentor(item);
+                        setMentors(prev => prev.map(m => m.id === item.id ? { ...m, students: (m.students || 0) + 1 } : m));
+                        try { eventBus.emit('mentorUpdated', { mentorId: item.id }); } catch {}
                         router.push('/tabs/chat');
                       }
                     } catch (e) { console.warn('Start chat error', e); }
@@ -458,6 +488,11 @@ const styles = StyleSheet.create({
     color: "#92400E",
     marginLeft: 6,
   },
+  statDate: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
   statsRowSection: {
     flexDirection: "row",
     marginBottom: 16,
@@ -480,6 +515,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748B",
     fontWeight: "600",
+  },
+  statRightColumn: {
+    justifyContent: 'center',
+  },
+  statDateCompact: {
+    marginTop: -14,
   },
   priceRow: {
     flexDirection: "row",
@@ -541,5 +582,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#64748B",
     textAlign: "center",
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F3F4F6",
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#1D4ED8',
+    fontWeight: '700',
+    fontSize: 18,
   },
 });

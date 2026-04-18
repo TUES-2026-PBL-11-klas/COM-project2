@@ -6,7 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
 import { API_URL } from "../../constants/api";
 import eventBus from "../../utils/eventBus";
 import { getToken, getUserId } from "../../utils/storage";
@@ -43,12 +45,19 @@ export default function ReviewsView(props: ReviewsViewProps) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [isSelf, setIsSelf] = useState(false);
+  const [isMentor, setIsMentor] = useState(false);
 
   const averageScore = reviews.length > 0
     ? (Math.round((reviews.reduce((total, review) => total + review.rating, 0) / reviews.length) * 10) / 10).toFixed(1)
     : "0.0";
 
   const addReview = () => {
+    if (isSelf) {
+      Alert.alert("Cannot review yourself", "You cannot leave a review for your own profile.");
+      return;
+    }
+
     const trimmed = comment.trim();
     if (!trimmed) {
       return;
@@ -66,10 +75,14 @@ export default function ReviewsView(props: ReviewsViewProps) {
       }),
     };
 
-    // prevent duplicate locally
-    if (hasReviewed) return;
+    if (hasReviewed) {
+      Alert.alert(
+        "Already reviewed",
+        "You can only leave one review for this mentor."
+      );
+      return;
+    }
 
-    // optimistic UI
     setReviews(prevReviews => [newReview, ...prevReviews]);
     setHasReviewed(true);
     setRating(5);
@@ -98,14 +111,11 @@ export default function ReviewsView(props: ReviewsViewProps) {
 
         if (!res.ok) {
           console.warn("Failed to submit review", await res.text());
-          // rollback optimistic UI
           setReviews(prev => prev.filter(r => r.id !== newReview.id));
           setHasReviewed(false);
         } else {
           const saved = await res.json();
-          // replace temp id with server id
           setReviews(prev => prev.map(r => r.id === newReview.id ? { ...r, id: saved.id } : r));
-          // notify other views (Account) that a review was created
           try { eventBus.emit('reviewUpdated', { reviewedExternalId: saved.reviewedExternalId, reviewedUserId: saved.reviewedUserId }); } catch {}
         }
       } catch (err) {
@@ -125,13 +135,15 @@ export default function ReviewsView(props: ReviewsViewProps) {
         const token = await getToken();
         const uid = await getUserId();
         setCurrentUserId(uid);
-        // try fetch me to get username when token present
+        if (mentor && uid) setIsSelf(String(mentor.id) === String(uid));
         if (token) {
           const r = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
           if (r.ok) {
             const j = await r.json();
             setCurrentUserName(j.username || null);
             if (!uid && j.id) setCurrentUserId(j.id);
+            if (mentor && j.id) setIsSelf(String(mentor.id) === String(j.id));
+            setIsMentor(!!j.isMentor);
           }
         }
 
@@ -145,7 +157,6 @@ export default function ReviewsView(props: ReviewsViewProps) {
             if (uid) setHasReviewed(data.some((d: any) => String(d.reviewerId) === String(uid)));
           }
         } else {
-          // reviews tab: fetch reviews for current user
           if (token) {
             const res = await fetch(`${API_URL}/reviews/mine`, { headers: { Authorization: `Bearer ${token}` } });
             if (res.ok) {
@@ -163,7 +174,6 @@ export default function ReviewsView(props: ReviewsViewProps) {
 
     load();
 
-    // subscribe to updates
     unsub = eventBus.on('reviewUpdated', (payload: any) => {
       if (!payload) return;
       const reviewedExternalId = payload.reviewedExternalId;
@@ -173,7 +183,6 @@ export default function ReviewsView(props: ReviewsViewProps) {
           load();
         }
       } else {
-        // if this is the 'mine' tab, reload when any review about current user changed
         if (reviewedUserId && String(reviewedUserId) === String(currentUserId)) load();
       }
     });
@@ -192,7 +201,7 @@ export default function ReviewsView(props: ReviewsViewProps) {
             ))}
           </View>
           <View style={styles.mentorRating}>
-            <Text style={styles.mentorRatingIcon}>⭐</Text>
+            <MaterialIcons name="star" size={16} color="#F59E0B" style={{ marginRight: 6 }} />
             <Text style={styles.mentorRatingText}>{averageScore}</Text>
           </View>
         </View>
@@ -200,12 +209,18 @@ export default function ReviewsView(props: ReviewsViewProps) {
 
       <View style={styles.heroCard}>
         <Text style={styles.title}>
-          {mentor ? `${mentor.name}'s Reviews` : "Student Reviews"}
+          {mentor
+            ? `${mentor.name}'s Reviews`
+            : isMentor
+              ? "Share your knowledge"
+              : "Student Reviews"}
         </Text>
         <Text style={[styles.subtitle, { marginBottom: reviews.length > 0 ? 18 : 0 }]}>
           {mentor
             ? "Read feedback from students who worked with this mentor."
-            : "Real feedback from learners who found the right mentor."
+            : isMentor
+              ? "Write and share your expertise with students."
+              : "Real feedback from learners who found the right mentor."
           }
         </Text>
         {reviews.length > 0 && (
@@ -228,7 +243,7 @@ export default function ReviewsView(props: ReviewsViewProps) {
           </View>
         )}
 
-        {mentor && !hasReviewed && (
+        {mentor && !hasReviewed && !isSelf && (
         <View style={styles.formCard}>
         <Text style={styles.formLabel}>Your Rating</Text>
         <View style={styles.ratingRow}>
@@ -238,9 +253,7 @@ export default function ReviewsView(props: ReviewsViewProps) {
               onPress={() => setRating(value)}
               style={styles.starButton}
             >
-              <Text style={[styles.star, rating >= value && styles.starActive]}>
-                {rating >= value ? "★" : "☆"}
-              </Text>
+              <MaterialIcons name={rating >= value ? 'star' : 'star-border'} size={30} color={rating >= value ? '#FACC15' : '#CBD5E1'} />
             </TouchableOpacity>
           ))}
         </View>
@@ -280,9 +293,7 @@ export default function ReviewsView(props: ReviewsViewProps) {
               </View>
               <View style={styles.ratingRowSmall}>
                 {Array.from({ length: 5 }, (_, index) => (
-                  <Text key={index} style={styles.smallStar}>
-                    {index < review.rating ? "★" : "☆"}
-                  </Text>
+                  <MaterialIcons key={index} name={index < review.rating ? 'star' : 'star-border'} size={16} color="#FACC15" style={{ marginRight: 4 }} />
                 ))}
               </View>
               <Text style={styles.reviewComment}>{review.comment}</Text>
@@ -291,13 +302,20 @@ export default function ReviewsView(props: ReviewsViewProps) {
         </>
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>📝</Text>
+          <MaterialIcons name="edit" size={48} color="#94A3B8" />
           <Text style={styles.emptyText}>{mentor ? "No reviews yet" : "Choose a mentor to review"}</Text>
           {mentor ? (
             <Text style={styles.emptySubtext}>{`Be the first to review ${mentor.name}!`}</Text>
           ) : (
             <Text style={styles.emptySubtext}>Tap a mentor on the main page to view or write reviews.</Text>
           )}
+        </View>
+      )}
+
+      {mentor && isSelf && (
+        <View style={[styles.formCard, { alignItems: 'center' }]}>
+          <Text style={{ fontWeight: '700', color: '#1E3A8A', marginBottom: 8 }}>You cannot review yourself</Text>
+          <Text style={{ color: '#64748B', textAlign: 'center' }}>Reviews must be written by other users who worked with this mentor.</Text>
         </View>
       )}
     </ScrollView>

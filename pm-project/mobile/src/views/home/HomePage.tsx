@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
 import { useEffect, useState } from "react";
 import { getToken } from "../../utils/storage";
 import { API_URL } from "../../constants/api";
@@ -12,7 +13,6 @@ export default function HomePage() {
   const [reviews, setReviews] = useState<any[]>([]);
 
   useEffect(() => {
-    // Check if user is logged in
     const checkAuth = async () => {
       const token = await getToken();
       setIsLoggedIn(!!token);
@@ -20,7 +20,6 @@ export default function HomePage() {
     };
 
     checkAuth();
-    // load mentors from server (fallback to local may exist elsewhere)
     const loadMentors = async () => {
       try {
         const res = await fetch(`${API_URL}/mentors/list`);
@@ -60,7 +59,6 @@ export default function HomePage() {
   }
 
   if (isLoggedIn) {
-    // If user is logged in, go to mentors page
     return (
       <View style={styles.container}>
         <Text>Redirecting...</Text>
@@ -90,7 +88,10 @@ export default function HomePage() {
             <Text style={styles.statLabel}>Active Students</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{reviews.length === 0 ? 'None' : `${(Math.round((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) * 10) / 10).toFixed(1)}★`}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.statNumber}>{reviews.length === 0 ? 'None' : `${(Math.round((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) * 10) / 10).toFixed(1)}`}</Text>
+              {reviews.length > 0 && <MaterialIcons name="star" size={16} color="#FACC15" style={{ marginLeft: 6 }} />}
+            </View>
             <Text style={styles.statLabel}>Average Rating</Text>
           </View>
         </View>
@@ -99,7 +100,7 @@ export default function HomePage() {
         <View style={styles.featuresSection}>
           <Text style={styles.sectionTitle}>Why Choose Us?</Text>
           <View style={styles.featureCard}>
-            <Text style={styles.featureIcon}>🎓</Text>
+            <MaterialIcons name="school" size={28} color="#2563EB" />
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Expert Mentors</Text>
               <Text style={styles.featureDescription}>Vetted professionals with years of teaching experience</Text>
@@ -107,7 +108,7 @@ export default function HomePage() {
           </View>
 
           <View style={styles.featureCard}>
-            <Text style={styles.featureIcon}>⭐</Text>
+            <MaterialIcons name="star" size={28} color="#F59E0B" />
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Quality Assured</Text>
               <Text style={styles.featureDescription}>All mentors rated and reviewed by verified students</Text>
@@ -115,7 +116,7 @@ export default function HomePage() {
           </View>
 
           <View style={styles.featureCard}>
-            <Text style={styles.featureIcon}>🚀</Text>
+            <MaterialIcons name="flash-on" size={28} color="#EF4444" />
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Fast Results</Text>
               <Text style={styles.featureDescription}>See measurable improvement in weeks</Text>
@@ -123,7 +124,7 @@ export default function HomePage() {
           </View>
 
           <View style={styles.featureCard}>
-            <Text style={styles.featureIcon}>💬</Text>
+            <MaterialIcons name="chat" size={28} color="#10B981" />
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>One-on-One Support</Text>
               <Text style={styles.featureDescription}>Personalized learning at your own pace</Text>
@@ -131,7 +132,7 @@ export default function HomePage() {
           </View>
 
           <View style={styles.featureCard}>
-            <Text style={styles.featureIcon}>🎯</Text>
+            <MaterialIcons name="event" size={28} color="#6366F1" />
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Flexible Scheduling</Text>
               <Text style={styles.featureDescription}>Learn when and where it suits you best</Text>
@@ -139,7 +140,7 @@ export default function HomePage() {
           </View>
 
           <View style={styles.featureCard}>
-            <Text style={styles.featureIcon}>💰</Text>
+            <MaterialIcons name="attach-money" size={28} color="#8B5CF6" />
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>Affordable Pricing</Text>
               <Text style={styles.featureDescription}>Quality education at reasonable rates</Text>
@@ -182,7 +183,11 @@ export default function HomePage() {
               <View key={r.id || idx} style={styles.testimonialCard}>
                 <View style={styles.testimonialHeader}>
                   <Text style={styles.testimonialName}>{r.name || 'Anonymous'}</Text>
-                    <Text style={styles.testimonialRating}>{Array.from({ length: 5 }).map((_, i) => (i < (r.rating || 0) ? '★' : '☆')).join('')}</Text>
+                    <View style={styles.testimonialRatingRow}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <MaterialIcons key={i} name={i < (r.rating || 0) ? 'star' : 'star-border'} size={14} color="#FACC15" />
+                      ))}
+                    </View>
                 </View>
                   <Text style={styles.testimonialText}>{r.comment || r.content || ''}</Text>
                     {r.mentorName ? (
@@ -236,6 +241,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  testimonialRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   heroSection: {
     backgroundColor: "#2563EB",

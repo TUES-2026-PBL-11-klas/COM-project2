@@ -9,9 +9,8 @@ namespace PM.Data.Seed
     {
         public static void SeedTestMentors(AppDbContext context)
         {
-            if (context.MentorProfiles.Any()) return; // already seeded
+            if (context.MentorProfiles.Any()) return;
 
-            // Simple helper to add a user and mentor profile
             void AddMentor(string username, string email, string subjects, int studentsHelped, (string id, string name, int rating, string comment, DateTime date)[] reviews)
             {
                 var user = new UserDMO { Username = username, Email = email, PasswordHash = "", CreatedAt = DateTime.UtcNow };
