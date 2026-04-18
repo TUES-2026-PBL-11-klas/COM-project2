@@ -1,0 +1,514 @@
+import { useRouter } from "expo-router";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
+import { useEffect, useState } from "react";
+import { getToken } from "../../utils/storage";
+import { API_URL } from "../../constants/api";
+import eventBus from "../../utils/eventBus";
+
+export default function HomePage() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = await getToken();
+      setIsLoggedIn(!!token);
+      setLoading(false);
+    };
+
+    checkAuth();
+    const loadMentors = async () => {
+      try {
+        const res = await fetch(`${API_URL}/mentors/list`);
+        if (res.ok) {
+          const data = await res.json();
+          const allReviews: any[] = [];
+          data.forEach((m: any) => {
+            const subjRaw = m.subjects || m.subject || '';
+            const subjArr = String(subjRaw).split(',').map((s: string) => s.trim()).filter(Boolean);
+            if (Array.isArray(m.reviews)) {
+              m.reviews.forEach((r: any) => allReviews.push({ ...r, mentorName: m.name, mentorSubjects: subjArr }));
+            }
+          });
+          setReviews(allReviews);
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    (async () => {
+      try {
+        await loadMentors();
+      } catch (e) { /* ignore */ }
+    })();
+
+    const unsub = eventBus.on('reviewUpdated', () => {
+      try { loadMentors(); } catch { }
+    });
+    return () => { if (unsub) unsub(); };
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (isLoggedIn) {
+    return (
+      <View style={styles.container}>
+        <Text>Redirecting...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Hero Section */}
+      <View style={styles.heroSection}>
+        <View style={styles.heroContent}>
+          <Text style={styles.heroTitle}>Master Any Subject</Text>
+          <Text style={styles.heroSubtitle}>Connect with expert mentors and unlock your potential</Text>
+        </View>
+      </View>
+
+      <View style={styles.content}>
+        {/* Stats Section */}
+        <View style={styles.statsSection}>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>500+</Text>
+            <Text style={styles.statLabel}>Expert Mentors</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>10K+</Text>
+            <Text style={styles.statLabel}>Active Students</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.statNumber}>{reviews.length === 0 ? 'None' : `${(Math.round((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) * 10) / 10).toFixed(1)}`}</Text>
+              {reviews.length > 0 && <MaterialIcons name="star" size={16} color="#FACC15" style={{ marginLeft: 6 }} />}
+            </View>
+            <Text style={styles.statLabel}>Average Rating</Text>
+          </View>
+        </View>
+
+        {/* Features Section */}
+        <View style={styles.featuresSection}>
+          <Text style={styles.sectionTitle}>Why Choose Us?</Text>
+          <View style={styles.featureCard}>
+            <MaterialIcons name="school" size={28} color="#2563EB" />
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>Expert Mentors</Text>
+              <Text style={styles.featureDescription}>Vetted professionals with years of teaching experience</Text>
+            </View>
+          </View>
+
+          <View style={styles.featureCard}>
+            <MaterialIcons name="star" size={28} color="#F59E0B" />
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>Quality Assured</Text>
+              <Text style={styles.featureDescription}>All mentors rated and reviewed by verified students</Text>
+            </View>
+          </View>
+
+          <View style={styles.featureCard}>
+            <MaterialIcons name="flash-on" size={28} color="#EF4444" />
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>Fast Results</Text>
+              <Text style={styles.featureDescription}>See measurable improvement in weeks</Text>
+            </View>
+          </View>
+
+          <View style={styles.featureCard}>
+            <MaterialIcons name="chat" size={28} color="#10B981" />
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>One-on-One Support</Text>
+              <Text style={styles.featureDescription}>Personalized learning at your own pace</Text>
+            </View>
+          </View>
+
+          <View style={styles.featureCard}>
+            <MaterialIcons name="event" size={28} color="#6366F1" />
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>Flexible Scheduling</Text>
+              <Text style={styles.featureDescription}>Learn when and where it suits you best</Text>
+            </View>
+          </View>
+
+          <View style={styles.featureCard}>
+            <MaterialIcons name="attach-money" size={28} color="#8B5CF6" />
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>Affordable Pricing</Text>
+              <Text style={styles.featureDescription}>Quality education at reasonable rates</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Subjects Section */}
+        <View style={styles.subjectsSection}>
+          <Text style={styles.sectionTitle}>Popular Subjects</Text>
+          <View style={styles.subjectGrid}>
+            <View style={styles.subjectTag}>
+              <Text style={styles.subjectText}>Math</Text>
+            </View>
+            <View style={styles.subjectTag}>
+              <Text style={styles.subjectText}>English</Text>
+            </View>
+            <View style={styles.subjectTag}>
+              <Text style={styles.subjectText}>Physics</Text>
+            </View>
+            <View style={styles.subjectTag}>
+              <Text style={styles.subjectText}>Chemistry</Text>
+            </View>
+            <View style={styles.subjectTag}>
+              <Text style={styles.subjectText}>History</Text>
+            </View>
+            <View style={styles.subjectTag}>
+              <Text style={styles.subjectText}>Programming</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Testimonials */}
+        <View style={styles.testimonialsSection}>
+          <Text style={styles.sectionTitle}>Student Reviews</Text>
+          {reviews.length === 0 ? (
+            <Text style={styles.empty}>No reviews yet.</Text>
+          ) : (
+            reviews.slice(0, 4).map((r, idx) => (
+              <View key={r.id || idx} style={styles.testimonialCard}>
+                <View style={styles.testimonialHeader}>
+                  <Text style={styles.testimonialName}>{r.name || 'Anonymous'}</Text>
+                    <View style={styles.testimonialRatingRow}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <MaterialIcons key={i} name={i < (r.rating || 0) ? 'star' : 'star-border'} size={14} color="#FACC15" />
+                      ))}
+                    </View>
+                </View>
+                  <Text style={styles.testimonialText}>{r.comment || r.content || ''}</Text>
+                    {r.mentorName ? (
+                    <View style={{ marginTop: 8 }}>
+                      <Text style={styles.testimonialMentorName}>{r.mentorName}</Text>
+                      <View style={styles.testimonialSubjectsRow}>
+                        {(r.mentorSubjects || []).slice(0,3).map((s: any) => (
+                          <Text key={s} style={styles.testimonialSubjectTag}>{s}</Text>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* CTA Section */}
+        <View style={styles.ctaSection}>
+          <Text style={styles.ctaTitle}>Ready to Transform Your Learning?</Text>
+          <Text style={styles.ctaDescription}>Join thousands of successful students today</Text>
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push("/auth/login")}
+          >
+            <Text style={styles.primaryButtonText}>Login to Browse Mentors</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push("/auth/register")}
+          >
+            <Text style={styles.secondaryButtonText}>Create New Account</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Demo Info */}
+        <View style={styles.demoInfo}>
+          <Text style={styles.demoTitle}>🎁 Try Demo Account</Text>
+          <Text style={styles.demoText}>Username: <Text style={styles.demoValue}>demo</Text></Text>
+          <Text style={styles.demoText}>Password: <Text style={styles.demoValue}>demo123</Text></Text>
+          <Text style={styles.demoNote}>Perfect way to explore the platform before committing</Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
+  testimonialRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroSection: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroContent: {
+    alignItems: "center",
+  },
+  heroTitle: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: "#fff",
+    textAlign: "center",
+    opacity: 0.9,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 40,
+  },
+  statsSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 40,
+    marginTop: -30,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginHorizontal: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#2563EB",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1E3A8A",
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  featuresSection: {
+    marginBottom: 40,
+  },
+  featureCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  featureIcon: {
+    fontSize: 28,
+    marginRight: 14,
+    marginTop: 2,
+  },
+  featureContent: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1E3A8A",
+    marginBottom: 4,
+  },
+  featureDescription: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+  },
+  subjectsSection: {
+    marginBottom: 40,
+  },
+  subjectGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  subjectTag: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    marginBottom: 10,
+    width: "48%",
+    alignItems: "center",
+  },
+  subjectText: {
+    color: "#1E40AF",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  testimonialsSection: {
+    marginBottom: 40,
+  },
+  testimonialCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#2563EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  testimonialHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  testimonialName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#1E3A8A",
+  },
+  testimonialRating: {
+    fontSize: 12,
+  },
+  testimonialText: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+    fontStyle: "italic",
+  },
+  testimonialMentorName: {
+    fontSize: 13,
+    color: "#0F172A",
+    fontWeight: "700",
+  },
+  testimonialSubject: {
+    fontSize: 12,
+    color: "#2563EB",
+    fontWeight: "700",
+  },
+  testimonialSubjectsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  testimonialSubjectTag: {
+    fontSize: 12,
+    color: '#2563EB',
+    backgroundColor: 'rgba(37,99,235,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginRight: 6,
+    marginBottom: 6,
+    fontWeight: '700',
+  },
+  empty: { color: "#64748B", fontStyle: "italic" },
+  ctaSection: {
+    backgroundColor: "#fff",
+    padding: 24,
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  ctaTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1E3A8A",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  ctaDescription: {
+    fontSize: 15,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  primaryButton: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  secondaryButton: {
+    backgroundColor: "#f0f4f8",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#2563EB",
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: "#2563EB",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  demoInfo: {
+    backgroundColor: "#FEF08A",
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#EAB308",
+  },
+  demoTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#854D0E",
+    marginBottom: 10,
+  },
+  demoText: {
+    fontSize: 13,
+    color: "#854D0E",
+    marginBottom: 4,
+  },
+  demoValue: {
+    fontWeight: "bold",
+    backgroundColor: "#FEFCE8",
+    paddingHorizontal: 4,
+  },
+  demoNote: {
+    fontSize: 12,
+    color: "#854D0E",
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+});

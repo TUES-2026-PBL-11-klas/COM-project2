@@ -10,5 +10,6 @@ namespace PM.Data.Entities
         public string PasswordHash { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public ICollection<Role> Roles { get; set; } = new List<Role>();
+        public ICollection<Chat> Chats { get; set; } = new List<Chat>();
     }
 }

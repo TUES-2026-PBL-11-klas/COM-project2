@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using PM.Core.DTOs;
 using PM.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace PM.API.Controllers
 {
@@ -11,59 +13,72 @@ namespace PM.API.Controllers
     {
         private readonly IUserService _userService;
         private readonly ITokenService _tokenService;
+        private readonly ILogger<AuthController> _logger;
+        private readonly PM.Data.Context.AppDbContext _context;
 
-        public AuthController(IUserService userService, ITokenService tokenService)
+        public AuthController(IUserService userService, ITokenService tokenService, ILogger<AuthController> logger, PM.Data.Context.AppDbContext context)
         {
             _userService = userService;
             _tokenService = tokenService;
+            _logger = logger;
+            _context = context;
         }
 
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterRequestDto request)
         {
-            var user = _userService.Register(request);
-            var roles = user.Roles?.ToList() ?? new List<string>();
-            var token = _tokenService.GenerateToken(user.Username, roles);
+            _logger.LogInformation("Register attempt for " + request.Username);
+            var resp = _userService.Register(request);
+            var roles = resp.Roles?.ToList() ?? new List<string>();
+            var token = _tokenService.GenerateToken(resp.Username, roles);
 
-            return Ok(new RegisterResponseDto
-            {
-                Username = user.Username,
-                Email = user.Email,
-                Roles = roles,
-                Token = token
-            });
+            _logger.LogInformation("User registered: " + resp.Username);
+
+            resp.Token = token;
+            return Ok(resp);
         }
 
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequestDto request)
         {
-            var user = _userService.Login(request);
-            var roles = user.Roles?.ToList() ?? new List<string>();
+            _logger.LogInformation("Login attempt for " + request.Username);
 
-            var token = _tokenService.GenerateToken(user.Username, roles);
+            var resp = _userService.Login(request);
+            var roles = resp.Roles?.ToList() ?? new List<string>();
 
-            return Ok(new LoginResponseDto
-            {
-                Username = user.Username,
-                Roles = roles,
-                Token = token
-            });
+            var token = _tokenService.GenerateToken(resp.Username, roles);
+
+            _logger.LogInformation("User logged in: " + resp.Username);
+
+            resp.Token = token;
+            return Ok(resp);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPost("promote/{username}")]
         public IActionResult PromoteUser(string username, [FromBody] List<string> roleNames)
         {
+            _logger.LogInformation("Promote user " + username + " to roles: " + string.Join(", ", roleNames));
             _userService.UpdateUserRole(username, roleNames);
-            return Ok($"User '{username}' roles promoted to: {string.Join(", ", roleNames)}");        
+            _logger.LogInformation("User " + username + " promoted");
+            return Ok("User '" + username + "' roles promoted to: " + string.Join(", ", roleNames));        
         }
 
         [Authorize]
         [HttpGet("me")]
         public IActionResult GetMe()
         {
-            return Ok(new { Username = User.Identity.Name });
+            var name = User?.Identity?.Name;
+            _logger.LogInformation("GetMe called for " + name);
+
+            var user = _context.Users.Include(u => u.Roles).FirstOrDefault(u => u.Username == name);
+            if (user == null)
+                return NotFound();
+
+            var roles = user.Roles?.Select(r => r.Name).ToList() ?? new List<string>();
+            var isMentor = roles.Any(r => string.Equals(r, "Mentor", System.StringComparison.OrdinalIgnoreCase));
+
+            return Ok(new { Username = name, Id = user.Id, Roles = roles, IsMentor = isMentor });
         }
-        // tva za test prosto
     }
 }

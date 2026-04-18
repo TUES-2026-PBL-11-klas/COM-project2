@@ -23,7 +23,7 @@ namespace PM.Core.Services
             if (string.IsNullOrEmpty(_configuration["Jwt:Key"]))
                 throw new InvalidOperationException("JWT Key is missing");
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new Exception("JWT Key is missing")));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>

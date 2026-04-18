@@ -1,20 +1,37 @@
-import { View, Text, Button } from "react-native";
-import { removeToken } from "../../utils/storage";
+import HomeView from "../../src/views/auth/home/HomeView";
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
+import { ActivityIndicator, View } from "react-native";
 
 export default function Home() {
   const router = useRouter();
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
-  const logout = async () => {
-    await removeToken();
-    router.replace("/(auth)/login");
-  };
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { getToken } = await import("../../src/utils/storage");
+      const token = await getToken();
+      if (!token) {
+        setAuthorized(false);
+        router.replace("/auth/login");
+        return;
+      }
 
-  return (
-    <View style={{ padding: 20 }}>
-      <Text style={{ fontSize: 24 }}>Home</Text>
+      setAuthorized(true);
+    };
 
-      <Button title="Logout" onPress={logout} />
-    </View>
-  );
+    checkAuth();
+  }, [router]);
+
+  if (authorized === null) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  if (!authorized) return null;
+
+  return <HomeView />;
 }
