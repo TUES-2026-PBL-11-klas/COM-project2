@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useMentorChat } from "../../contexts/MentorChatContext";
 import eventBus from "../../utils/eventBus";
 import { API_URL } from "../../constants/api";
-import { getToken, getUserId, ensureUserId } from "../../utils/storage";
+import { getToken, ensureUserId } from "../../utils/storage";
 import { useRouter } from "expo-router";
 import { getMentors } from "../../viewmodels/home/homeViewModel";
 
@@ -31,7 +31,7 @@ export default function ChatView() {
   const [draft, setDraft] = useState("");
   const [mentors, setMentors] = useState<any[]>([]);
 
-  const createAndOpen = async (m: any) => {
+  const createAndOpen = useCallback(async (m: any) => {
     try { setSelectedMentorForChat?.(null); } catch {}
 
     const mentorId = m.externalMentorId || m.user2Id || m.user1Id || m.id;
@@ -69,7 +69,7 @@ export default function ChatView() {
         try {
           const rMe = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
           if (rMe.ok) me = await rMe.json();
-        } catch (e) { }
+        } catch { }
 
         const r2 = await fetch(`${API_URL}/chats/mine`, { headers: { Authorization: `Bearer ${token}` } });
         if (r2.ok) setChats(await r2.json());
@@ -85,16 +85,16 @@ export default function ChatView() {
         } else {
           setActiveChat(created);
         }
-      } catch (e) { setActiveChat(created); }
+      } catch { setActiveChat(created); }
     } catch (err) {
       console.warn("Create/open chat error", err);
     }
-  };
+  }, [setSelectedMentorForChat, resolveChatName]);
 
   useEffect(() => {
     if (!selectedMentorForChat) return;
     createAndOpen(selectedMentorForChat);
-  }, [selectedMentorForChat]);
+  }, [selectedMentorForChat, createAndOpen]);
 
   useEffect(() => {
     (async () => {
@@ -107,7 +107,7 @@ export default function ChatView() {
     })();
   }, []);
 
-  const resolveChatName = (chat: any) => {
+  const resolveChatName = useCallback((chat: any) => {
     if (!chat) return "Mentor";
     if (chat.name && !chat.name.startsWith("chat_")) {
       if (/^\d+$/.test(String(chat.name))) {
@@ -122,7 +122,7 @@ export default function ChatView() {
     if (found) return found.name;
 
     return "Mentor";
-  };
+  }, [mentors]);
 
   const chatExistsForMentor = (m: any) => {
     if (!m || !chats) return false;
@@ -172,11 +172,11 @@ export default function ChatView() {
         console.warn("Load messages error", err);
       }
     })();
-  }, [activeChat]);
+  }, [activeChat, resolveChatName]);
 
   useEffect(() => {
     const unsub1 = eventBus.on('chatsUpdated', (payload: any) => {
-      try { setChats(payload || []); } catch (e) {}
+      try { setChats(payload || []); } catch { }
     });
     const unsub2 = eventBus.on('mentorResigned', async () => {
       try {
@@ -184,7 +184,7 @@ export default function ChatView() {
         if (!token) return;
         const r = await fetch(`${API_URL}/chats/mine`, { headers: { Authorization: `Bearer ${token}` } });
         if (r.ok) setChats(await r.json());
-      } catch (e) { }
+      } catch { }
     });
     return () => { if (unsub1) unsub1(); if (unsub2) unsub2(); };
   }, []);
@@ -204,7 +204,7 @@ export default function ChatView() {
         try {
           const rMe = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
           if (rMe.ok) me = await rMe.json();
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
 
         const res = await fetch(`${API_URL}/chats/mine`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -242,7 +242,7 @@ export default function ChatView() {
 
             if (myName && c.name && String(c.name).toLowerCase().includes(myName)) return false;
 
-          } catch (e) { }
+          } catch { }
           return true;
         });
         setChats(filtered);
@@ -250,7 +250,7 @@ export default function ChatView() {
         console.warn("Load chats error", err);
       }
     })();
-  }, [activeChat]);
+  }, [activeChat, resolveChatName]);
 
   const sendMessage = () => {
     const trimmed = draft.trim();

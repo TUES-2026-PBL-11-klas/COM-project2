@@ -96,6 +96,7 @@ namespace PM.Tests
             svc.UpdateUserRole("carol", new List<string> { "Admin" });
 
             var updated = repo.GetByUsername("carol");
+            Assert.NotNull(updated);
             Assert.Contains("Admin", updated.Roles.Select(r => r.Name));
             Assert.DoesNotContain("Student", updated.Roles.Select(r => r.Name));
         }

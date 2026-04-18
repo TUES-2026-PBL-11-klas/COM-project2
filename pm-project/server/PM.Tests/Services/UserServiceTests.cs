@@ -53,9 +53,9 @@ namespace PM.Tests.Services
         {
             var (context, mockRepo, service) = SetupService();
 
-            mockRepo.Setup(x => x.GetByUsername("newUser")).Returns((UserDMO)null);
+            mockRepo.Setup(x => x.GetByUsername("newUser")).Returns((UserDMO?)null);
 
-            UserDMO savedUser = null;
+            UserDMO? savedUser = null;
             mockRepo.Setup(x => x.AddUser(It.IsAny<UserDMO>()))
                     .Callback<UserDMO>(u => savedUser = u);
 
@@ -78,7 +78,7 @@ namespace PM.Tests.Services
         public void Login_ThrowsInvalidCredentials_WhenUserNotFound()
         {
             var (_, mockRepo, service) = SetupService();
-            mockRepo.Setup(x => x.GetByUsername("nonexistent")).Returns((UserDMO)null);
+            mockRepo.Setup(x => x.GetByUsername("nonexistent")).Returns((UserDMO?)null);
 
             var request = new LoginRequestDto { Username = "nonexistent", Password = "pwd" };
             Assert.Throws<InvalidCredentialsException>(() => service.Login(request));
@@ -111,7 +111,7 @@ namespace PM.Tests.Services
         public void UpdateUserRole_ThrowsException_IfUserNotFound()
         {
             var (_, mockRepo, service) = SetupService();
-            mockRepo.Setup(x => x.GetByUsername("nonexistent")).Returns((UserDMO)null);
+            mockRepo.Setup(x => x.GetByUsername("nonexistent")).Returns((UserDMO?)null);
 
             Assert.Throws<UserNotFoundException>(() => service.UpdateUserRole("nonexistent", new List<string> { "Admin" }));
         }

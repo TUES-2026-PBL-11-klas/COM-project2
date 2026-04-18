@@ -176,22 +176,6 @@ export default function HomePage() {
         {/* Testimonials */}
         <View style={styles.testimonialsSection}>
           <Text style={styles.sectionTitle}>Student Reviews</Text>
-<<<<<<< HEAD
-          <View style={styles.testimonialCard}>
-            <View style={styles.testimonialHeader}>
-              <Text style={styles.testimonialName}>Sarah M.</Text>
-              <Text style={styles.testimonialRating}>⭐⭐⭐⭐⭐</Text>
-            </View>
-            <Text style={styles.testimonialText}>&quot;Best tutoring experience ever! My grades improved from C to A in just 2 months.&quot;</Text>
-          </View>
-          <View style={styles.testimonialCard}>
-            <View style={styles.testimonialHeader}>
-              <Text style={styles.testimonialName}>John D.</Text>
-              <Text style={styles.testimonialRating}>⭐⭐⭐⭐⭐</Text>
-            </View>
-            <Text style={styles.testimonialText}>&quot;The mentor matched me perfectly and explained concepts so clearly. Highly recommend!&quot;</Text>
-          </View>
-=======
           {reviews.length === 0 ? (
             <Text style={styles.empty}>No reviews yet.</Text>
           ) : (
@@ -219,7 +203,6 @@ export default function HomePage() {
               </View>
             ))
           )}
->>>>>>> main
         </View>
 
         {/* CTA Section */}

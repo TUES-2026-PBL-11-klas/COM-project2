@@ -45,7 +45,7 @@ namespace PM.Tests.Services
         {
             // Arrange
             var mockConfig = new Mock<IConfiguration>();
-            mockConfig.SetupGet(x => x[It.IsRegex("Jwt:Key")]).Returns((string)null);
+            mockConfig.SetupGet(x => x[It.IsRegex("Jwt:Key")]).Returns((string?)null);
 
             var tokenService = new TokenService(mockConfig.Object);
 

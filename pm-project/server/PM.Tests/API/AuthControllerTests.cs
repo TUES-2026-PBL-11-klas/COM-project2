@@ -1,31 +1,38 @@
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using PM.Data.Context;
 using Moq;
 using PM.API.Controllers;
 using PM.Core.DTOs;
 using PM.Core.Interfaces;
-using System.Collections.Generic;
 using Xunit;
 
 namespace PM.Tests.API
 {
     public class AuthControllerTests
     {
-        private (Mock<IUserService>, Mock<ITokenService>, Mock<ILogger<AuthController>>, AuthController) Setup()
+        private (Mock<IUserService>, Mock<ITokenService>, Mock<ILogger<AuthController>>, AuthController, AppDbContext) Setup()
         {
             var mockUserService = new Mock<IUserService>();
             var mockTokenService = new Mock<ITokenService>();
             var mockLogger = new Mock<ILogger<AuthController>>();
 
-            var controller = new AuthController(mockUserService.Object, mockTokenService.Object, mockLogger.Object);
-            return (mockUserService, mockTokenService, mockLogger, controller);
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: System.Guid.NewGuid().ToString())
+                .Options;
+            var context = new AppDbContext(options);
+
+            var controller = new AuthController(mockUserService.Object, mockTokenService.Object, mockLogger.Object, context);
+            return (mockUserService, mockTokenService, mockLogger, controller, context);
         }
 
         [Fact]
         public void Register_ReturnsOkResult_WithValidRequest()
         {
             // Arrange
-            var (mockUserService, mockTokenService, _, controller) = Setup();
+            var (mockUserService, mockTokenService, _, controller, _) = Setup();
 
             var req = new RegisterRequestDto { Username = "testUser", Password = "pwd" };
             
@@ -56,7 +63,7 @@ namespace PM.Tests.API
         public void Login_ReturnsOkResult_WithValidCredentials()
         {
             // Arrange
-            var (mockUserService, mockTokenService, _, controller) = Setup();
+            var (mockUserService, mockTokenService, _, controller, _) = Setup();
 
             var req = new LoginRequestDto { Username = "user", Password = "pwd" };
             
