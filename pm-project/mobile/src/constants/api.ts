@@ -1,17 +1,8 @@
-import Constants from "expo-constants";
+import { Platform } from "react-native";
 
-function getHostForDevice() {
-	try {
-		const dbg = (Constants.manifest as any)?.debuggerHost || (Constants.expoConfig as any)?.hostUri;
-		if (dbg && typeof dbg === "string") {
-			const host = dbg.split(":")[0];
-			return host;
-		}
-	} catch (_e) {
-		// ignore
-	}
-	return "localhost";
-}
 
-const HOST = getHostForDevice();
-export const API_URL = `http://${HOST}:5130/api`;
+const defaultHost = Platform.OS === "android" ? "10.0.2.2" : "localhost";
+const port = 5130;
+
+export const API_URL =
+	(process.env.REACT_NATIVE_API_URL as string) || `http://${defaultHost}:${port}/api`;

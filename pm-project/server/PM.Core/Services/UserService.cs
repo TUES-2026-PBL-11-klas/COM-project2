@@ -58,6 +58,7 @@ namespace PM.Core.Services
 
             return new RegisterResponseDto
             {
+                Id = user.Id,
                 Username = user.Username,
                 Email = user.Email,
                 Roles = user.Roles.Select(r => r.Name).ToList()
@@ -75,6 +76,7 @@ namespace PM.Core.Services
 
             return new LoginResponseDto
             {
+                Id = user.Id,
                 Username = user.Username,
                 Roles = user.Roles.Select(r => r.Name).ToList()
             };

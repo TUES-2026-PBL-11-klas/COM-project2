@@ -8,6 +8,7 @@ namespace PM.Data.Entities
         public UserDMO User1 { get; set; } = null!;
         public Guid User2Id { get; set; }
         public UserDMO User2 { get; set; } = null!;
+        public string? ExternalMentorId { get; set; }
         public ICollection<Message> Messages { get; set; } = new List<Message>();
     }
 }

@@ -11,9 +11,9 @@ using PM.API.Hubs;
 using OpenTelemetry;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using DotNetEnv;
-using Serilog;
 
 Env.Load();
 
@@ -22,93 +22,96 @@ var configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(configuration)
-    .Enrich.FromLogContext()
-    .CreateLogger();
+var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddConfiguration(configuration);
 
-try
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseInMemoryDatabase("TempDb"));
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<ITokenService, TokenService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+
+builder.Services.AddJwtAuth(builder.Configuration);
+
+builder.Services.AddControllers();
+builder.Services.AddSignalR();
+
+builder.Services.AddCors(options =>
 {
-    Log.Information("Starting web host");
-
-    var builder = WebApplication.CreateBuilder(args);
-    builder.Host.UseSerilog();
-    builder.Configuration.AddConfiguration(configuration);
-
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseInMemoryDatabase("TempDb"));
-
-    builder.Services.AddScoped<IUserRepository, UserRepository>();
-    builder.Services.AddScoped<IUserService, UserService>();
-    builder.Services.AddSingleton<ITokenService, TokenService>();
-    builder.Services.AddScoped<IChatService, ChatService>();
-
-    builder.Services.AddJwtAuth(builder.Configuration);
-
-    builder.Services.AddControllers();
-    builder.Services.AddSignalR();
-
-    builder.Services.AddCors(options =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        options.AddPolicy("AllowAll", policy =>
-        {
-            policy.WithOrigins("http://localhost:3000")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        });
+        policy.WithOrigins("http://localhost:3000")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+    });
+});
+
+builder.Logging.ClearProviders();
+
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.SetResourceBuilder(
+        ResourceBuilder.CreateDefault().AddService("pm-api")
+    );
+
+    options.IncludeFormattedMessage = true;
+    options.IncludeScopes = true;
+    options.ParseStateValues = true;
+
+    options.AddOtlpExporter(otlp =>
+    {
+        otlp.Endpoint = new Uri("http://grafana-alloy:4318/v1/logs");
+        otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+    });
+});
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracerProviderBuilder =>
+    {
+        tracerProviderBuilder
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("pm-api"))
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddConsoleExporter()
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri("http://grafana-alloy:4318/v1/traces");
+                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+            });
+    })
+    .WithMetrics(metricsProviderBuilder =>
+    {
+        metricsProviderBuilder
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddConsoleExporter()
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri("http://grafana-alloy:4318/v1/metrics");
+                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+            });
     });
 
-    builder.Services.AddOpenTelemetry()
-        .WithTracing(tracerProviderBuilder =>
-        {
-            tracerProviderBuilder
-                .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("pm-api"))
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddConsoleExporter()
-                .AddOtlpExporter(options =>
-                {
-                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/traces");
-                    options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-                });
-        })
-        .WithMetrics(metricsProviderBuilder =>
-        {
-            metricsProviderBuilder
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddRuntimeInstrumentation()
-                .AddConsoleExporter()
-                .AddOtlpExporter(options =>
-                {
-                    options.Endpoint = new Uri("http://grafana-alloy:4318/v1/metrics");
-                    options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-                });
-        });
+var app = builder.Build();
 
-    var app = builder.Build();
+using var scope = app.Services.CreateScope();
+var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+RoleSeeder.SeedRoles(dbContext);
+// tva e za testvane s nqkvi acounti
+PM.Data.Seed.MentorSeeder.SeedTestMentors(dbContext);
+// tva e za testvane s nqkvi acounti
 
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    RoleSeeder.SeedRoles(dbContext);
+app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<LoggingMiddleware>();
 
-    app.UseMiddleware<ErrorHandlingMiddleware>();
-    app.UseMiddleware<LoggingMiddleware>();
+app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHub<ChatHub>("/chat");
 
-    app.UseCors("AllowAll");
-    app.UseAuthentication();
-    app.UseAuthorization();
-    app.MapControllers();
-    app.MapHub<ChatHub>("/chat");
-
-    app.Run();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Host terminated unexpectedly");
-}
-finally
-{
-    Log.CloseAndFlush();
-}
+app.Run();
