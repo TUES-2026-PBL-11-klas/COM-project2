@@ -12,7 +12,9 @@ namespace PM.Data.Context
 
         public DbSet<UserDMO> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
-        public DbSet<ConversationDMO> Conversations { get; set; }
+        public DbSet<Chat> Chats { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<MentorProfile> MentorProfiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -24,9 +26,38 @@ namespace PM.Data.Context
                 .UsingEntity(j => j.ToTable("USER_ROLES"));
 
             modelBuilder.Entity<UserDMO>()
-                .HasMany(u => u.Conversations)
-                .WithMany(c => c.Participants)
-                .UsingEntity(j => j.ToTable("CONVERSATION_PARTICIPANTS"));
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<UserDMO>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<Role>()
+                .HasIndex(r => r.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<MentorProfile>()
+                .HasIndex(mp => mp.UserId)
+                .IsUnique();
+
+            modelBuilder.Entity<MentorProfile>()
+                .HasOne(mp => mp.User)
+                .WithOne(u => u.MentorProfile)
+                .HasForeignKey<MentorProfile>(mp => mp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Chat>()
+                .HasOne(c => c.User1)
+                .WithMany()
+                .HasForeignKey(c => c.User1Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Chat>()
+                .HasOne(c => c.User2)
+                .WithMany()
+                .HasForeignKey(c => c.User2Id)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

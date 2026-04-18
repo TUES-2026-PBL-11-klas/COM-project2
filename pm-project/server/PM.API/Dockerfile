@@ -21,3 +21,4 @@ COPY --from=build /app/out ./
 EXPOSE 5130
 
 ENTRYPOINT ["dotnet", "PM.API.dll"]
+
