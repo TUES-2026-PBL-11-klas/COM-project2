@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using PM.API.Controllers;
 using PM.Core.DTOs;
 using PM.Core.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using PM.Data.Context;
 using Xunit;
 
@@ -24,7 +24,6 @@ namespace PM.Tests
         [Fact]
         public void Register_ReturnsOk_WithToken()
         {
-            using var context = CreateContext(Guid.NewGuid().ToString());
             var userSvc = new Mock<IUserService>();
             var tokenSvc = new Mock<ITokenService>();
 
@@ -44,6 +43,7 @@ namespace PM.Tests
                 .Options;
             using var context = new AppDbContext(options);
 
+            var logger = new Mock<ILogger<AuthController>>();
             var ctrl = new AuthController(userSvc.Object, tokenSvc.Object, logger.Object, context);
 
             var req = new RegisterRequestDto { Username = "u", Email = "e@e.com", Password = "p" };
@@ -58,7 +58,6 @@ namespace PM.Tests
         [Fact]
         public void Login_ReturnsOk_WithToken()
         {
-            using var context = CreateContext(Guid.NewGuid().ToString());
             var userSvc = new Mock<IUserService>();
             var tokenSvc = new Mock<ITokenService>();
 
@@ -77,6 +76,7 @@ namespace PM.Tests
                 .Options;
             using var context = new AppDbContext(options);
 
+            var logger = new Mock<ILogger<AuthController>>();
             var ctrl = new AuthController(userSvc.Object, tokenSvc.Object, logger.Object, context);
 
             var req = new LoginRequestDto { Username = "u", Password = "p" };
