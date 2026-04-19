@@ -2,7 +2,7 @@ name: Kubernetes CI/CD
 
 on:
   push:
-    branches: [ "main", "cd" ]
+    branches: [ "main" ]
     paths:
       - 'pm-project/infra/k8s/**'
       - 'pm-project/server/**'
