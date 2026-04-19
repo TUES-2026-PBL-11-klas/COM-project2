@@ -6,14 +6,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Image,
   Alert,
 } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import eventBus from "../../../utils/eventBus";
 import { API_URL } from "../../../constants/api";
-import { getUserId, ensureUserId, getToken } from "../../../utils/storage";
+import { ensureUserId, getToken } from "../../../utils/storage";
 import { useMentorReviews } from "../../../contexts/MentorReviewsContext";
 import { useMentorChat } from "../../../contexts/MentorChatContext";
 
@@ -30,7 +29,11 @@ export default function HomeView() {
     const unsub = eventBus.on('reviewUpdated', () => { try { load(); } catch {} });
     const unsub2 = eventBus.on('mentorsUpdated', (payload: any) => { try { setMentors((payload || [])); } catch {} });
     const unsub3 = eventBus.on('mentorResigned', () => { try { load(); } catch {} });
-    return () => { if (unsub) unsub(); };
+    return () => { 
+      if (unsub) unsub(); 
+      if (unsub2) unsub2();
+      if (unsub3) unsub3();
+    };
   }, []);
 
   const load = async () => {
@@ -230,7 +233,6 @@ export default function HomeView() {
                       if (!res.ok) {
                         console.warn('Start chat failed', res.status, await res.text());
                       } else {
-                        const created = await res.json();
                         try { setSelectedMentorForChat(item); } catch {}
                         setSelectedMentor(item);
                         setMentors(prev => prev.map(m => m.id === item.id ? { ...m, students: (m.students || 0) + 1 } : m));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { API_URL } from '../../src/constants/api';
@@ -50,7 +50,7 @@ export default function CreateMentor() {
               createdUserId = j.id || createdUserId;
             }
           }
-        } catch (e) { }
+        } catch { }
         eventBus.emit('mentorCreated', { userId: createdUserId, username });
         eventBus.emit('reviewUpdated', { reviewedUserId: userId });
       } catch {}

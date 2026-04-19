@@ -37,4 +37,5 @@ appsettings.Local.json
 appsettings.*.json
 .env
 prometheus.yml
-infra/prometheus.yml
+pm-project/infra/prometheus.yml
+pm-project/infra/k8s/*secret.yaml

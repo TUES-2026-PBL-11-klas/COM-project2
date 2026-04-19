@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: pm-project
+data:
+  config.alloy: |
+    otelcol.receiver.otlp "default" {
+      grpc {}
+      http {}
+
+      output {
+        traces  = [otelcol.processor.batch.default.input]
+        metrics = [otelcol.processor.batch.default.input]
+        logs    = [otelcol.processor.batch.default.input]
+      }
+    }
+
+    otelcol.processor.batch "default" {
+      output {
+        traces  = [otelcol.exporter.otlphttp.grafana.input]
+        metrics = [otelcol.exporter.otlphttp.grafana.input]
+        logs    = [otelcol.exporter.otlphttp.grafana.input]
+      }
+    }
+
+    otelcol.exporter.otlphttp "grafana" {
+      client {
+        endpoint = sys.env("GRAFANA_OTLP_URL")
+        auth     = otelcol.auth.basic.grafana.handler
+      }
+    }
+
+    otelcol.auth.basic "grafana" {
+      username = "1584186"
+      password = sys.env("GRAFANA_API_KEY")
+    }
+
+    // Collect logs from the pm-api pod via Kubernetes pod discovery
+    discovery.kubernetes "pm_api_pods" {
+      role = "pod"
+
+      namespaces {
+        names = ["pm-project"]
+      }
+
+      selectors {
+        role  = "pod"
+        label = "app=pm-api"
+      }
+    }
+
+    loki.source.kubernetes "pm_api" {
+      targets    = discovery.kubernetes.pm_api_pods.targets
+      forward_to = [loki.write.grafana.receiver]
+    }
+
+    loki.write "grafana" {
+      endpoint {
+        url = sys.env("LOKI_URL") + "/loki/api/v1/push"
+        basic_auth {
+          username = sys.env("LOKI_USERNAME")
+          password = sys.env("LOKI_PASSWORD")
+        }
+      }
+    }

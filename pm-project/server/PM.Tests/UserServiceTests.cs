@@ -97,7 +97,8 @@ namespace PM.Tests
 
             var updated = repo.GetByUsername("carol");
             Assert.NotNull(updated);
-            Assert.Contains("Admin", updated!.Roles.Select(r => r.Name));
+
+            Assert.Contains("Admin", updated.Roles.Select(r => r.Name));
             Assert.DoesNotContain("Student", updated.Roles.Select(r => r.Name));
         }
     }
