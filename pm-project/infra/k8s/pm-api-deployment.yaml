@@ -27,7 +27,7 @@ spec:
             - name: ASPNETCORE_URLS
               value: "http://+:5130"
             - name: ALLOWED_CORS_ORIGINS
-              value: "http://localhost:8081"
+              value: "http://localhost:8081,http://desktop-mvkg28e.tailfa346a.ts.net,https://desktop-mvkg28e.tailfa346a.ts.net"
             - name: Jwt__Key
               valueFrom:
                 secretKeyRef:
