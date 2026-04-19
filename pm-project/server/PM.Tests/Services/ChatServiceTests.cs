@@ -33,6 +33,9 @@ namespace PM.Tests.Services
 
             var chatId = Guid.NewGuid();
             var senderId = Guid.NewGuid();
+            // Ensure a chat exists in the DB so SendMessageAsync can find it
+            dbContext.Chats.Add(new PM.Data.Entities.Chat { Id = chatId, Name = "test", User1Id = Guid.Empty, User2Id = Guid.Empty });
+            await dbContext.SaveChangesAsync();
 
             // Act
             var result = await service.SendMessageAsync(chatId, senderId, "Hello World!");
