@@ -42,10 +42,24 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        var allowedOrigins = builder.Configuration["ALLOWED_CORS_ORIGINS"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+
+        if (allowedOrigins.Any())
+        {
+            policy.WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
+        }
+        else if (builder.Environment.IsDevelopment())
+        {
+            // Fallback for local development if no origins are explicitly configured
+            policy.SetIsOriginAllowed(_ => true)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
     });
 });
 

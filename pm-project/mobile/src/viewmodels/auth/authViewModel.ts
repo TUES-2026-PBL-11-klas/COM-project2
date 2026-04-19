@@ -1,4 +1,4 @@
-import { saveToken, saveUserId, getToken } from "../../utils/storage";
+import { saveToken, saveUserId } from "../../utils/storage";
 import { loginUser, registerUser, getMe } from "../../services/authService";
 
 export async function loginVM(username: string, password: string) {

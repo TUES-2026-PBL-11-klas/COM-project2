@@ -17,7 +17,7 @@ export default function RootNavigator() {
         } else {
           router.replace("/auth/login");
         }
-      } catch (err) {
+      } catch {
         router.replace("/auth/login");
       } finally {
         setLoading(false);
@@ -25,7 +25,7 @@ export default function RootNavigator() {
     };
 
     checkAuth();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (

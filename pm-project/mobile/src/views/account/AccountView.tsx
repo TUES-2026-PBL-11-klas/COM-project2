@@ -71,13 +71,13 @@ export default function AccountView() {
                     const jr = await resp.json();
                     item.reviewedUserName = jr.displayName ?? null;
                   }
-                } catch (e) { /* ignore */ }
+                } catch { }
                 if (!item.reviewedUserName) {
                   try {
                     const local = await getMentors();
                     const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
                     if (found) item.reviewedUserName = found.name;
-                  } catch (e) { }
+                  } catch { }
                 }
               }
               return item;
@@ -96,7 +96,7 @@ export default function AccountView() {
               setWritten(data);
               reviewCache.set(authoredCacheKey, data);
             } else setFetchAuthError(`Failed to load authored reviews: ${r2.status}`);
-          } catch (err) {
+          } catch {
             setFetchAuthError('Network error fetching authored reviews');
           }
         }
@@ -136,9 +136,9 @@ export default function AccountView() {
                         const local = await getMentors();
                         const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
                         if (found) item.reviewedUserName = found.name;
-                      } catch (e) { }
+                      } catch { }
                     }
-                  } catch (e) { /* ignore */ }
+                  } catch { /* ignore */ }
                 }
                 return item;
               }));
@@ -147,7 +147,7 @@ export default function AccountView() {
             }
           })();
         }
-      } catch (e) { }
+      } catch { }
     });
 
     const unsubReview = eventBus.on('reviewUpdated', async (payload: any) => {
@@ -167,13 +167,13 @@ export default function AccountView() {
                     const jr = await resp.json();
                     item.reviewedUserName = jr.displayName ?? null;
                   }
-                } catch (e) { }
+                } catch { }
                 if (!item.reviewedUserName) {
                   try {
                     const local = await getMentors();
                     const found = local.find((m: any) => String(m.id) === String(item.reviewedExternalId));
                     if (found) item.reviewedUserName = found.name;
-                  } catch (e) { }
+                  } catch { }
                 }
               }
               return item;
@@ -187,11 +187,11 @@ export default function AccountView() {
           const r3 = await fetch(`${API_URL}/reviews/${uid}`);
           if (r3.ok) setAbout(await r3.json());
         }
-      } catch (e) { }
+      } catch { }
     });
 
     return () => { if (unsubMentor) unsubMentor(); if (unsubReview) unsubReview(); };
-  }, []);
+  }, [userId]);
 
   const handleLogout = async () => {
     try {
@@ -223,7 +223,7 @@ export default function AccountView() {
             setShowThank(false);
             try {
               if (userId) await AsyncStorage.removeItem(`mentor_thank_shown:${userId}`);
-            } catch (e) { }
+            } catch { }
 
             try {
               const token2 = await getToken();
@@ -239,7 +239,7 @@ export default function AccountView() {
                 const mentors = await rMentors.json();
                 try { eventBus.emit('mentorsUpdated', mentors); } catch {}
               }
-            } catch (e) { }
+            } catch { }
             try { eventBus.emit('mentorResigned', { userId }); } catch {};
           } catch (err) {
             console.warn(err);
@@ -300,9 +300,9 @@ export default function AccountView() {
           fetchAuthError ? (
             <Text style={styles.empty}>{fetchAuthError} — try signing in.</Text>
           ) : !hasToken ? (
-            <Text style={styles.empty}>Sign in to see reviews you've written.</Text>
+            <Text style={styles.empty}>Sign in to see reviews you&apos;ve written.</Text>
           ) : (
-            <Text style={styles.empty}>You haven't written any reviews yet.</Text>
+            <Text style={styles.empty}>You haven&apos;t written any reviews yet.</Text>
           )
         ) : (
           written.map((r) => (

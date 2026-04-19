@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pm-api-ingress
+  namespace: pm-project
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: pm-api
+            port:
+              number: 5130
+      - path: /chat
+        pathType: Prefix
+        backend:
+          service:
+            name: pm-api
+            port:
+              number: 5130

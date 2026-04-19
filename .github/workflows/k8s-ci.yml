@@ -1,0 +1,64 @@
+name: Kubernetes CI Verification
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'pm-project/infra/k8s/**'
+      - 'pm-project/server/**'
+      - '.github/workflows/k8s-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'pm-project/infra/k8s/**'
+      - 'pm-project/server/**'
+      - '.github/workflows/k8s-ci.yml'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Docker image
+      run: |
+        docker build -t alexnay/pm-api:latest -f pm-project/server/PM.API/Dockerfile pm-project/server
+
+    - name: Log in to Docker Hub
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Push Docker image
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        docker push alexnay/pm-api:latest
+
+  k8s-validate:
+    runs-on: ubuntu-latest
+    env:
+      JWT_KEY: ${{ secrets.JWT_KEY }}
+      JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
+      JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE }}
+      GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+      GRAFANA_OTLP_URL: ${{ secrets.GRAFANA_OTLP_URL }}
+      GRAFANA_BASIC_AUTH: ${{ secrets.GRAFANA_BASIC_AUTH }}
+      OTEL_SERVICE_NAME: ${{ secrets.OTEL_SERVICE_NAME }}
+      LOKI_URL: ${{ secrets.LOKI_URL }}
+      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+      LOKI_BASIC_AUTH: ${{ secrets.LOKI_BASIC_AUTH }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Generate Secret Manifest
+      run: |
+        envsubst < pm-project/infra/k8s/pm-api-secret.yaml.template > pm-project/infra/k8s/pm-api-secret.yaml
+
+    - name: Validate Kubernetes Manifests
+      uses: docker://ghcr.io/yannh/kubeconform:latest
+      with:
+        entrypoint: "/kubeconform"
+        args: "-summary -verbose -ignore-missing-schemas pm-project/infra/k8s"

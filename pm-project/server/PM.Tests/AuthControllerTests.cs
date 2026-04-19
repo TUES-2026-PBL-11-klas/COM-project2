@@ -5,6 +5,8 @@ using Moq;
 using PM.API.Controllers;
 using PM.Core.DTOs;
 using PM.Core.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using PM.Data.Context;
 using Xunit;
 
 namespace PM.Tests
@@ -22,7 +24,12 @@ namespace PM.Tests
             userSvc.Setup(u => u.Register(It.IsAny<RegisterRequestDto>())).Returns(returned);
             tokenSvc.Setup(t => t.GenerateToken("u", It.IsAny<IEnumerable<string>>(), It.IsAny<int>())).Returns("tok");
 
-            var ctrl = new AuthController(userSvc.Object, tokenSvc.Object, logger.Object);
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: "RegisterTestDb")
+                .Options;
+            using var context = new AppDbContext(options);
+
+            var ctrl = new AuthController(userSvc.Object, tokenSvc.Object, logger.Object, context);
 
             var req = new RegisterRequestDto { Username = "u", Email = "e@e.com", Password = "p" };
             var res = ctrl.Register(req) as OkObjectResult;
@@ -45,7 +52,12 @@ namespace PM.Tests
             userSvc.Setup(u => u.Login(It.IsAny<LoginRequestDto>())).Returns(loginResp);
             tokenSvc.Setup(t => t.GenerateToken("u", It.IsAny<IEnumerable<string>>(), It.IsAny<int>())).Returns("tok");
 
-            var ctrl = new AuthController(userSvc.Object, tokenSvc.Object, logger.Object);
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: "LoginTestDb")
+                .Options;
+            using var context = new AppDbContext(options);
+
+            var ctrl = new AuthController(userSvc.Object, tokenSvc.Object, logger.Object, context);
 
             var req = new LoginRequestDto { Username = "u", Password = "p" };
             var res = ctrl.Login(req) as OkObjectResult;
