@@ -2,13 +2,13 @@ name: Kubernetes CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "cd" ]
     paths:
       - 'pm-project/infra/k8s/**'
       - 'pm-project/server/**'
       - '.github/workflows/k8s-ci.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "cd" ]
     paths:
       - 'pm-project/infra/k8s/**'
       - 'pm-project/server/**'
