@@ -83,9 +83,8 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Generate Secret Manifest
-      shell: bash
       run: |
-        envsubst < pm-project/infra/k8s/pm-api-secret.yaml.template > pm-project/infra/k8s/pm-api-secret.yaml
+        Get-Content pm-project/infra/k8s/pm-api-secret.yaml.template | envsubst | Set-Content pm-project/infra/k8s/pm-api-secret.yaml
 
     - name: Apply Kubernetes Manifests
       run: |
