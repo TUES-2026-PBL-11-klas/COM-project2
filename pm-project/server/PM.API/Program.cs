@@ -6,6 +6,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Instrumentation.SqlClient;
 using PM.API.Extensions;
 using PM.API.Hubs;
 using PM.API.Middleware;
@@ -110,7 +111,6 @@ builder.Services.AddCors(options =>
         }
         else if (builder.Environment.IsDevelopment())
         {
-            // Fallback for local development if no origins are explicitly configured
             policy.SetIsOriginAllowed(_ => true)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
@@ -128,6 +128,7 @@ builder.Services.AddOpenTelemetry()
             .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("pm-api"))
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
+            .AddSqlClientInstrumentation()
             .AddSource(DataActivitySource.SourceName)
             .AddOtlpExporter(opt =>
             {

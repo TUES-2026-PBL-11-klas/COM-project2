@@ -15,9 +15,7 @@ namespace PM.Tests.Services
         [Fact]
         public void GenerateToken_ReturnsValidJwt_WhenConfigurationIsCorrect()
         {
-            // Arrange
             var mockConfig = new Mock<IConfiguration>();
-            // To Mock IConfiguration["key"], we mock the indexer
             mockConfig.SetupGet(x => x[It.Is<string>(s => s == "Jwt:Key")]).Returns("ThisIsAVerySecretKeyForTesting1234567890!");
             mockConfig.SetupGet(x => x[It.Is<string>(s => s == "Jwt:Issuer")]).Returns("TestIssuer");
             mockConfig.SetupGet(x => x[It.Is<string>(s => s == "Jwt:Audience")]).Returns("TestAudience");
@@ -25,10 +23,8 @@ namespace PM.Tests.Services
             var tokenService = new TokenService(mockConfig.Object);
             var roles = new List<string> { "Student" };
 
-            // Act
             var tokenString = tokenService.GenerateToken("testuser", roles);
 
-            // Assert
             Assert.False(string.IsNullOrEmpty(tokenString));
 
             var handler = new JwtSecurityTokenHandler();
@@ -43,13 +39,11 @@ namespace PM.Tests.Services
         [Fact]
         public void GenerateToken_ThrowsException_WhenKeyIsMissing()
         {
-            // Arrange
             var mockConfig = new Mock<IConfiguration>();
             mockConfig.SetupGet(x => x[It.IsRegex("Jwt:Key")]).Returns((string?)null);
 
             var tokenService = new TokenService(mockConfig.Object);
 
-            // Act & Assert
             Assert.Throws<InvalidOperationException>(() => tokenService.GenerateToken("testuser", new List<string>()));
         }
     }

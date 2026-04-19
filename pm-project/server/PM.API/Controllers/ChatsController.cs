@@ -38,7 +38,7 @@ namespace PM.API.Controllers
 
             foreach (var chat in chats)
             {
-                if (chat.User1Id == user.Id && (chat.User2Id == Guid.Empty || chat.User2Id == user.Id) &&
+                if (chat.User1Id == user.Id && (chat.User2Id == null || chat.User2Id == user.Id) &&
                     string.IsNullOrWhiteSpace(chat.ExternalMentorId))
                 {
                     continue;
@@ -173,9 +173,9 @@ namespace PM.API.Controllers
 
         private async Task<string> ResolveChatNameAsync(Chat chat, Guid currentUserId)
         {
-            if (chat.User1Id != Guid.Empty && chat.User2Id != Guid.Empty)
+            if (chat.User1Id != Guid.Empty && chat.User2Id.HasValue)
             {
-                var otherId = chat.User1Id == currentUserId ? chat.User2Id : chat.User1Id;
+                var otherId = chat.User1Id == currentUserId ? chat.User2Id.Value : chat.User1Id;
                 var otherUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == otherId);
                 if (otherUser != null)
                 {

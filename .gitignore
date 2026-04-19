@@ -39,3 +39,4 @@ appsettings.*.json
 prometheus.yml
 pm-project/infra/prometheus.yml
 pm-project/infra/k8s/*secret.yaml
+*.sh

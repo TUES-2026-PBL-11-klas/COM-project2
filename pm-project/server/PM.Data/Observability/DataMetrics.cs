@@ -2,18 +2,12 @@ using System.Diagnostics.Metrics;
 
 namespace PM.Data.Observability
 {
-    /// <summary>
-    /// Shared metrics for PM.Data. Provides operation counters and a latency
-    /// histogram for every repository call. Registered in PM.API's
-    /// OpenTelemetry WithMetrics() call so data flows to Grafana.
-    /// </summary>
     public static class DataMetrics
     {
         public const string MeterName = "PM.Data";
 
         private static readonly Meter _meter = new(MeterName, "1.0.0");
 
-        // ----- USER -----
         public static readonly Counter<long> UserAdded =
             _meter.CreateCounter<long>(
                 "pm_data.user.add",
@@ -24,7 +18,6 @@ namespace PM.Data.Observability
                 "pm_data.user.query",
                 description: "Number of user lookup operations");
 
-        // ----- CONVERSATION -----
         public static readonly Counter<long> ConversationAdded =
             _meter.CreateCounter<long>(
                 "pm_data.conversation.add",
@@ -35,7 +28,6 @@ namespace PM.Data.Observability
                 "pm_data.conversation.query",
                 description: "Number of conversation query operations");
 
-        // ----- MESSAGE -----
         public static readonly Counter<long> MessageAdded =
             _meter.CreateCounter<long>(
                 "pm_data.message.add",
@@ -46,7 +38,6 @@ namespace PM.Data.Observability
                 "pm_data.message.query",
                 description: "Number of message query operations against Cassandra");
 
-        // ----- LATENCY (shared histogram across all operations) -----
         public static readonly Histogram<double> OperationDuration =
             _meter.CreateHistogram<double>(
                 "pm_data.operation.duration",

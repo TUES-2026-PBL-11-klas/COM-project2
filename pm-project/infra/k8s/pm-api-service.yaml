@@ -6,8 +6,6 @@ metadata:
   labels:
     app: pm-api
 spec:
-  # Change type to LoadBalancer if you want to expose externally on a cloud cluster,
-  # or NodePort for minikube access via node IP.
   type: ClusterIP
   selector:
     app: pm-api

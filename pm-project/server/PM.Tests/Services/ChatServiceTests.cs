@@ -25,7 +25,6 @@ namespace PM.Tests.Services
         [Fact]
         public async Task SendMessageAsync_CallsRepositoryAndReturnsMessage()
         {
-            // Arrange
             var dbContext = GetDbContext();
             var messageRepo = new Mock<IMessageRepository>();
             messageRepo.Setup(m => m.AddMessageAsync(It.IsAny<MessageDMO>())).Returns(Task.CompletedTask);
@@ -33,27 +32,22 @@ namespace PM.Tests.Services
 
             var chatId = Guid.NewGuid();
             var senderId = Guid.NewGuid();
-            // Ensure a chat exists in the DB so SendMessageAsync can find it
             dbContext.Chats.Add(new PM.Data.Entities.Chat { Id = chatId, Name = "test", User1Id = Guid.Empty, User2Id = Guid.Empty });
             await dbContext.SaveChangesAsync();
 
-            // Act
             var result = await service.SendMessageAsync(chatId, senderId, "Hello World!");
 
-            // Assert
             Assert.NotNull(result);
             Assert.Equal(chatId, result.ChatId);
             Assert.Equal(senderId, result.SenderId);
             Assert.Equal("Hello World!", result.Content);
 
-            // Verify repository was used
             messageRepo.Verify(m => m.AddMessageAsync(It.IsAny<MessageDMO>()), Times.Once);
         }
 
         [Fact]
         public async Task GetChatMessagesAsync_ReturnsOrderedMessagesForChat()
         {
-            // Arrange
             var dbContext = GetDbContext();
             var messageRepo = new Mock<IMessageRepository>();
             var chatId = Guid.NewGuid();
@@ -66,10 +60,8 @@ namespace PM.Tests.Services
             messageRepo.Setup(m => m.GetMessagesForChatAsync(chatId)).ReturnsAsync(msgs);
             var service = new ChatService(dbContext, messageRepo.Object);
 
-            // Act
             var messages = await service.GetChatMessagesAsync(chatId);
 
-            // Assert
             Assert.NotNull(messages);
             var msgList = messages.ToList();
             Assert.Equal(2, msgList.Count);

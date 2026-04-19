@@ -22,7 +22,6 @@ namespace PM.Data.Repositories
             _mapper = new Mapper(session);
             _logger = logger ?? NullLogger<MessageRepository>.Instance;
 
-            // Note: MappingConfiguration is registered globally at startup (Program.cs).
         }
 
         public async Task<IEnumerable<MessageDMO>> GetMessagesForChatAsync(Guid chatId)

@@ -36,7 +36,6 @@ data:
       password = sys.env("GRAFANA_API_KEY")
     }
 
-    // Collect logs from the pm-api pod via Kubernetes pod discovery
     discovery.kubernetes "pm_api_pods" {
       role = "pod"
 

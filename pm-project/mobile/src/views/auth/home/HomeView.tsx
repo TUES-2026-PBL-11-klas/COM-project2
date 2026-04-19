@@ -188,7 +188,6 @@ export default function HomeView() {
               <View style={styles.stat}>
                 <MaterialIcons name="access-time" size={16} color="#64748B" style={{ marginRight: 8 }} />
                 <View style={styles.statRightColumn}>
-                  <Text style={styles.statText}>{item.experience}</Text>
                   {item.createdAt ? (
                     <Text style={[styles.statText, styles.statDateCompact]}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                   ) : null}
@@ -516,9 +515,11 @@ const styles = StyleSheet.create({
   },
   statRightColumn: {
     justifyContent: 'center',
+    alignItems: 'center',
   },
   statDateCompact: {
-    marginTop: -14,
+    marginTop: 0,
+    textAlign: 'center',
   },
   priceRow: {
     flexDirection: "row",

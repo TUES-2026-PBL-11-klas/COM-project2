@@ -35,7 +35,6 @@ export default function ReviewsScreen() {
 
   if (!authorized) return null;
 
-  // Show reviews for the mentor being chatted with, or the mentor selected for reviews
   const mentorToShow = selectedMentorForChat || selectedMentor;
 
   return <ReviewsView mentor={mentorToShow} />;

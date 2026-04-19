@@ -50,7 +50,7 @@ namespace PM.Core.Services
             var chat = new Chat
             {
                 User1Id = senderId,
-                User2Id = resolvedMentor?.Id ?? Guid.Empty,
+                User2Id = resolvedMentor?.Id,
                 ExternalMentorId = await ResolveExternalMentorIdAsync(mentorId, resolvedMentor?.Id),
                 Name = resolvedMentor != null ? FormatDisplayName(resolvedMentor.Username) : "Mentor"
             };

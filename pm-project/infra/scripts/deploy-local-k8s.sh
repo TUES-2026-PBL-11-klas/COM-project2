@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy local kind cluster resources and app
-# Usage: ./deploy-local-k8s.sh
-
 WORKDIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 K8S_DIR="$WORKDIR/k8s"
@@ -11,7 +8,6 @@ SERVER_DIR="$WORKDIR/../server"
 
 print(){ echo "[deploy] $*"; }
 
-# Helpers
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
 
 ensure_kind(){
@@ -19,7 +15,6 @@ ensure_kind(){
     print "kind present"
     return 0
   fi
-  # Try Homebrew install if available
   if command_exists brew; then
     print "Installing kind via brew..."
     brew install kind
@@ -29,7 +24,6 @@ ensure_kind(){
   return 1
 }
 
-# Detect cluster mode: kind or existing context
 USE_KIND=0
 if command_exists kind; then
   USE_KIND=1
@@ -61,7 +55,6 @@ EOF
   fi
 fi
 
-# Build image
 print "Building pm-api image..."
 cd "$SERVER_DIR"
 docker build -t alexnay/pm-api:latest -f PM.API/Dockerfile .
@@ -73,17 +66,14 @@ else
   print "Not using kind; assuming cluster can access local Docker images (Docker Desktop)."
 fi
 
-# Load .env (script dir) or k8s/.env if present, then read secrets from environment or fallbacks
 if [ -f "$SCRIPT_DIR/.env" ]; then
   print "Loading environment from $SCRIPT_DIR/.env"
   set -a
-  # shellcheck disable=SC1090
   source "$SCRIPT_DIR/.env"
   set +a
 elif [ -f "$K8S_DIR/.env" ]; then
   print "Loading environment from $K8S_DIR/.env"
   set -a
-  # shellcheck disable=SC1090
   source "$K8S_DIR/.env"
   set +a
 fi
@@ -107,7 +97,6 @@ kubectl apply -f "$K8S_DIR/pm-api-deployment.yaml"
 kubectl apply -f "$K8S_DIR/pm-api-service.yaml" || true
 kubectl apply -f "$K8S_DIR/pm-api-ingress.yaml" || true
 
-# Optionally install monitoring (Prometheus + Grafana) if helm available
 if command_exists helm; then
   print "Helm detected — installing monitoring stack (kube-prometheus-stack) if not present..."
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true

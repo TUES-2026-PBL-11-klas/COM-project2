@@ -24,19 +24,12 @@ export default function CreateMentor() {
     try {
       const token = await getToken();
       const userId = await getUserId();
-      // POST to create mentor profile
-      // Prefer authenticated token (server will resolve user from token). Only send userId when no token is available.
       const body: any = { subjects: selected };
       if (!token && userId) body.userId = userId;
       await fetch(`${API_URL}/mentors`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body)
       });
 
-      // grant mentor role (server should handle role assignment in mentor creation endpoint)
-
-      // server creates an initial public chat for the mentor; no client-side chat POST needed
-
-      // notify other views: emit mentorCreated with username if available
       try {
         let username: string | null = null;
         let createdUserId = userId || null;
@@ -55,7 +48,6 @@ export default function CreateMentor() {
         eventBus.emit('reviewUpdated', { reviewedUserId: userId });
       } catch {}
 
-      // navigate back to main page (do not show self in mentor selector)
       router.replace('/');
     } catch (err) {
       console.warn('Create mentor failed', err);

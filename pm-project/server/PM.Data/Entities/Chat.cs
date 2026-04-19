@@ -6,8 +6,8 @@ namespace PM.Data.Entities
         public string Name { get; set; } = null!;
         public Guid User1Id { get; set; }
         public UserDMO User1 { get; set; } = null!;
-        public Guid User2Id { get; set; }
-        public UserDMO User2 { get; set; } = null!;
+        public Guid? User2Id { get; set; }
+        public UserDMO? User2 { get; set; }
         public string? ExternalMentorId { get; set; }
         public string? LastMessageContent { get; set; }
         public DateTime? LastMessageAt { get; set; }

@@ -23,7 +23,6 @@ namespace PM.Tests.Services
 
             var context = new AppDbContext(options);
 
-            // Add default roles
             context.Roles.Add(new Role { Name = "Student" });
             context.Roles.Add(new Role { Name = "Admin" });
             context.SaveChanges();
@@ -70,7 +69,6 @@ namespace PM.Tests.Services
             mockRepo.Verify(x => x.AddUser(It.IsAny<UserDMO>()), Times.Once);
             mockRepo.Verify(x => x.SaveChanges(), Times.Once);
             
-            // Password shouldn't be plain text
             Assert.NotEqual("pwd", savedUser.PasswordHash);
         }
 
@@ -131,7 +129,7 @@ namespace PM.Tests.Services
             service.UpdateUserRole("target", new List<string> { "Admin" });
 
             Assert.Contains(dummyUser.Roles, r => r.Name == "Admin");
-            Assert.DoesNotContain(dummyUser.Roles, r => r.Name == "Student"); // Should be cleared
+            Assert.DoesNotContain(dummyUser.Roles, r => r.Name == "Student");
             mockRepo.Verify(x => x.SaveChanges(), Times.Once);
         }
     }
