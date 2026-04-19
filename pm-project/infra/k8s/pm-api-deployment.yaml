@@ -28,6 +28,10 @@ spec:
               value: "http://+:5130"
             - name: ALLOWED_CORS_ORIGINS
               value: "http://localhost:8081"
+            - name: ConnectionStrings__DefaultConnection
+              value: "Server=postgres-db;Port=5432;Database=pmdb;User Id=postgres;Password=postgrespassword;"
+            - name: Cassandra__ContactPoints__0
+              value: "cassandra-db"
             - name: Jwt__Key
               valueFrom:
                 secretKeyRef:
