@@ -40,7 +40,7 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.image_tag }}
             ${{ env.IMAGE_NAME }}:latest
-
+            
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest

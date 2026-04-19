@@ -10,6 +10,48 @@ print(){ echo "[deploy] $*"; }
 
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
 
+port_forward(){
+  print "Starting port-forward(s)..."
+  PM_API_LOCAL_PORT=${PM_API_LOCAL_PORT:-5130}
+  POSTGRES_LOCAL_PORT=${POSTGRES_LOCAL_PORT:-5432}
+  ALLOY_OTLP_LOCAL_PORT=${ALLOY_OTLP_LOCAL_PORT:-4317}
+  POSTGRES_EXPORTER_LOCAL_PORT=${POSTGRES_EXPORTER_LOCAL_PORT:-9187}
+
+  # detect service targetPort (fallback to 5130)
+  SERVICE_PORT=$(kubectl get svc pm-api -n pm-project -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "5130")
+  TARGET_PORT=$(kubectl get svc pm-api -n pm-project -o jsonpath='{.spec.ports[0].targetPort}' 2>/dev/null || echo "$SERVICE_PORT")
+  if [ -z "$TARGET_PORT" ]; then TARGET_PORT=5130; fi
+
+  # warn if service has no endpoints (no ready pods)
+  ENDPTS=$(kubectl get endpoints pm-api -n pm-project -o jsonpath='{.subsets}' 2>/dev/null || echo "")
+  if [ -z "$ENDPTS" ] || [ "$ENDPTS" = "[]" ]; then
+    print "Warning: service 'pm-api' has no endpoints or pods are not ready — port-forward may fail until pod is ready"
+  fi
+
+  if [ "${PM_API_FOREGROUND:-0}" -eq 1 ]; then
+    print "Port-forwarding pm-api -> local ${PM_API_LOCAL_PORT}:${TARGET_PORT} (foreground - will block)"
+    kubectl -n pm-project port-forward svc/pm-api ${PM_API_LOCAL_PORT}:${TARGET_PORT}
+  else
+    (kubectl -n pm-project port-forward svc/pm-api ${PM_API_LOCAL_PORT}:${TARGET_PORT} >/dev/null 2>&1 &) || true
+    PF_PMAPI=$!
+  fi
+
+  (kubectl -n pm-project port-forward svc/postgres-db ${POSTGRES_LOCAL_PORT}:5432 >/dev/null 2>&1 &) || true
+  PF_PG=$!
+  (kubectl -n pm-project port-forward svc/grafana-alloy ${ALLOY_OTLP_LOCAL_PORT}:4317 >/dev/null 2>&1 &) || true
+  PF_ALLOY=$!
+  (kubectl -n pm-project port-forward svc/postgres-exporter ${POSTGRES_EXPORTER_LOCAL_PORT}:9187 >/dev/null 2>&1 &) || true
+  PF_PGEXP=$!
+
+  sleep 1
+  print "Port-forwards started (PIDs: ${PF_PMAPI} ${PF_PG} ${PF_ALLOY} ${PF_PGEXP})"
+  print "pm-api -> http://127.0.0.1:${PM_API_LOCAL_PORT}"
+  print "postgres -> 127.0.0.1:${POSTGRES_LOCAL_PORT}"
+  print "alloy OTLP -> 127.0.0.1:${ALLOY_OTLP_LOCAL_PORT}"
+  print "postgres exporter -> 127.0.0.1:${POSTGRES_EXPORTER_LOCAL_PORT}"
+  print "To stop port-forwards: kill ${PF_PMAPI} ${PF_PG} ${PF_ALLOY} ${PF_PGEXP}"
+}
+
 ensure_kind(){
   if command_exists kind; then
     print "kind present"
@@ -79,10 +121,15 @@ elif [ -f "$K8S_DIR/.env" ]; then
 fi
 
 cd "$K8S_DIR"
-
 print "Rendering secret manifest..."
 export JWT_KEY JWT_ISSUER JWT_AUDIENCE GRAFANA_API_KEY GRAFANA_OTLP_URL GRAFANA_BASIC_AUTH OTEL_SERVICE_NAME LOKI_URL LOKI_USERNAME LOKI_PASSWORD LOKI_BASIC_AUTH
 envsubst < pm-api-secret.yaml.template > pm-api-secret.yaml
+
+if [ "${PORT_FORWARD_ONLY:-0}" -eq 1 ]; then
+  print "PORT_FORWARD_ONLY=1 set — skipping apply/helm/logs and starting port-forward only"
+  port_forward
+  exit 0
+fi
 
 print "Applying manifests..."
 kubectl apply -f "$K8S_DIR/namespace.yaml"
@@ -120,10 +167,6 @@ kubectl -n pm-project rollout status deploy/pm-api --timeout=120s || true
 print "Pods in namespace pm-project:"
 kubectl get pods -n pm-project -o wide || true
 
-print "--- alloy logs ---"
-kubectl logs -n pm-project deploy/grafana-alloy --tail=200 || true
-
-print "--- pm-api logs ---"
-kubectl logs -n pm-project deploy/pm-api --tail=200 || true
+kubectl -n pm-project port-forward svc/pm-api 5130:5130
 
 print "Deployment complete"
