@@ -2,7 +2,7 @@ name: CD - Deploy to Kubernetes
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "cd_pipeline" ]
 
 env:
   API_DIR: pm-project/server/PM.API
