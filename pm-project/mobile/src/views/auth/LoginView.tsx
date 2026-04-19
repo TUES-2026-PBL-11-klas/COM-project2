@@ -8,6 +8,8 @@ import {
   Alert,
 } from "react-native";
 import { loginVM } from "../../viewmodels/auth/authViewModel";
+import { loginUser } from "../../services/authService";
+import { API_URL } from "../../constants/api";
 import { useRouter } from "expo-router";
 
 export default function Login() {
@@ -23,6 +25,7 @@ export default function Login() {
       return;
     }
 
+    console.log(`[LOGIN] Attempting login for ${username} at ${API_URL}`);
     setLoading(true);
     try {
       const res = await loginVM(username, password);

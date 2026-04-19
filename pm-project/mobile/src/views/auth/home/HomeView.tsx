@@ -49,11 +49,7 @@ export default function HomeView() {
         return;
       }
     } catch (e) { }
-    try {
-      const local = await import("../../../viewmodels/home/homeViewModel");
-      const data = await local.getMentors();
-      setMentors(data);
-    } catch (e) { setMentors([]); }
+    setMentors([]);
   };
 
   const subjects = Array.from(

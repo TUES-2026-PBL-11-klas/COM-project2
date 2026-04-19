@@ -13,7 +13,6 @@ namespace PM.Data.Context
         public DbSet<UserDMO> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Chat> Chats { get; set; }
-        public DbSet<Message> Messages { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<MentorProfile> MentorProfiles { get; set; }
 
@@ -24,7 +23,29 @@ namespace PM.Data.Context
             modelBuilder.Entity<UserDMO>()
                 .HasMany(u => u.Roles)
                 .WithMany(r => r.Users)
-                .UsingEntity(j => j.ToTable("UserRoles"));
+                .UsingEntity(j => j.ToTable("USER_ROLES"));
+
+            modelBuilder.Entity<UserDMO>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<UserDMO>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<Role>()
+                .HasIndex(r => r.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<MentorProfile>()
+                .HasIndex(mp => mp.UserId)
+                .IsUnique();
+
+            modelBuilder.Entity<MentorProfile>()
+                .HasOne(mp => mp.User)
+                .WithOne(u => u.MentorProfile)
+                .HasForeignKey<MentorProfile>(mp => mp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Chat>()
                 .HasOne(c => c.User1)
@@ -37,11 +58,6 @@ namespace PM.Data.Context
                 .WithMany()
                 .HasForeignKey(c => c.User2Id)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Message>()
-                .HasOne(m => m.Chat)
-                .WithMany(c => c.Messages)
-                .HasForeignKey(m => m.ChatId);
         }
     }
 }

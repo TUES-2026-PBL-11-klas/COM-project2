@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using PM.API.Hubs;
 using PM.Core.DTOs;
+using PM.Core.Interfaces;
 using PM.Data.Context;
 using PM.Data.Entities;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.SignalR;
-using PM.API.Hubs;
 
 namespace PM.API.Controllers
 {
@@ -14,55 +15,44 @@ namespace PM.API.Controllers
     public class MentorsController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IChatService _chatService;
         private readonly ILogger<MentorsController> _logger;
         private readonly IHubContext<ChatHub> _hubContext;
 
-        public MentorsController(AppDbContext db, ILogger<MentorsController> logger, IHubContext<ChatHub> hubContext)
+        public MentorsController(AppDbContext db, IChatService chatService, ILogger<MentorsController> logger, IHubContext<ChatHub> hubContext)
         {
             _db = db;
+            _chatService = chatService;
             _logger = logger;
             _hubContext = hubContext;
         }
 
         [AllowAnonymous]
         [HttpGet("list")]
-        public IActionResult List()
+        public async Task<IActionResult> List()
         {
-                var mentors = _db.MentorProfiles.ToList().Select(mp =>
+            var mentorProfiles = await _db.MentorProfiles
+                .Include(mp => mp.User)
+                .OrderByDescending(mp => mp.CreatedAt)
+                .ToListAsync();
+
+            var mentors = mentorProfiles.Select(mp =>
             {
-                var user = _db.Users.FirstOrDefault(u => u.Id == mp.UserId);
-                var reviews = _db.Reviews.Where(r => r.ReviewedUserId.HasValue && r.ReviewedUserId.Value == mp.UserId)
+                var reviews = _db.Reviews
+                    .Where(r => r.ReviewedUserId == mp.UserId)
                     .OrderByDescending(r => r.CreatedAt)
-                    .Select(r => new {
+                    .Select(r => new
+                    {
                         id = r.Id,
                         name = r.ReviewerName,
                         rating = r.Rating,
                         comment = r.Content,
                         date = r.CreatedAt
-                    }).ToList();
+                    })
+                    .ToList();
 
-                double? avg = null;
-                if (reviews.Count > 0)
-                {
-                    avg = reviews.Average(r => (double)r.rating);
-                }
-
-                string? displayName = null;
-                if (user?.Username != null)
-                {
-                    var cleaned = System.Text.RegularExpressions.Regex.Replace(user.Username, "[^a-zA-Z0-9]+", " ");
-                    var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    for (int i = 0; i < parts.Length; i++)
-                    {
-                        if (parts[i].Length > 0)
-                            parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
-                    }
-                    displayName = string.Join(' ', parts);
-                }
-
-                var avatarUrl = displayName != null ?
-                    $"https://ui-avatars.com/api/?name={System.Uri.EscapeDataString(displayName)}&background=2563EB&color=fff" :
-                    null;
+                double? averageRating = reviews.Count == 0 ? null : reviews.Average(r => (double)r.rating);
+                var displayName = FormatDisplayName(mp.User.Username);
 
                 return new
                 {
@@ -72,189 +62,192 @@ namespace PM.API.Controllers
                     name = displayName,
                     subjects = mp.Subjects,
                     students = mp.StudentsHelped,
+                    rating = averageRating,
+                    experience = mp.Experience,
+                    available = mp.Available,
                     createdAt = mp.CreatedAt,
-                    rating = avg,
-                    avatar = avatarUrl,
-                    reviews = reviews
+                    avatar = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(displayName)}&background=2563EB&color=fff",
+                    reviews
                 };
             }).ToList();
 
             return Ok(mentors);
         }
 
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateMentor([FromBody] CreateMentorDto dto)
         {
-            PM.Data.Entities.UserDMO? user = null;
-
-            var username = User?.Identity?.Name;
-            if (!string.IsNullOrWhiteSpace(username))
-            {
-                user = _db.Users.FirstOrDefault(u => u.Username == username);
-            }
-
-            if (user == null && !string.IsNullOrWhiteSpace(dto?.UserId))
-            {
-                if (Guid.TryParse(dto.UserId, out var parsed))
-                {
-                    user = _db.Users.FirstOrDefault(u => u.Id == parsed);
-                }
-            }
-
+            var user = await ResolveUserAsync(dto?.UserId);
             if (user == null)
             {
                 _logger.LogWarning("CreateMentor: could not resolve user. dto.UserId={UserId}", dto?.UserId);
                 return Unauthorized();
             }
 
-            var subjects = dto?.Subjects ?? new string[0];
+            var subjects = dto?.Subjects?.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray() ?? Array.Empty<string>();
+            var mentorProfile = await _db.MentorProfiles.FirstOrDefaultAsync(m => m.UserId == user.Id);
 
-            var existing = _db.MentorProfiles.FirstOrDefault(m => m.UserId == user!.Id);
-            if (existing == null)
+            if (mentorProfile == null)
             {
-                var prof = new MentorProfile
+                mentorProfile = new MentorProfile
                 {
                     UserId = user.Id,
                     Subjects = string.Join(',', subjects),
+                    Experience = "New mentor",
+                    Available = true
                 };
-                _db.MentorProfiles.Add(prof);
-                _logger.LogDebug("CreateMentor: created MentorProfile for user {UserId}", user.Id);
+                _db.MentorProfiles.Add(mentorProfile);
             }
             else
             {
-                existing.Subjects = string.Join(',', subjects);
-                _logger.LogDebug("CreateMentor: updated MentorProfile for user {UserId}", user.Id);
+                mentorProfile.Subjects = string.Join(',', subjects);
+                mentorProfile.Available = true;
             }
 
-            var mentorRole = _db.Roles.FirstOrDefault(r => r.Name == "Mentor");
+            var mentorRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "Mentor");
             if (mentorRole == null)
             {
                 mentorRole = new Role { Name = "Mentor" };
                 _db.Roles.Add(mentorRole);
             }
-            if (!user!.Roles.Any(r => r.Name == "Mentor"))
+
+            if (!user.Roles.Any(r => r.Name == "Mentor"))
             {
                 user.Roles.Add(mentorRole);
             }
 
             await _db.SaveChangesAsync();
 
-            await _db.SaveChangesAsync();
-
-            return Ok(new { userId = user.Id, username = user.Username, isMentor = true });
+            return Ok(new
+            {
+                userId = user.Id,
+                username = user.Username,
+                profileId = mentorProfile.Id,
+                isMentor = true
+            });
         }
 
         [Authorize]
         [HttpPost("resign")]
         public async Task<IActionResult> ResignAsMentor()
         {
-            var username = User?.Identity?.Name;
-            if (string.IsNullOrWhiteSpace(username)) return Unauthorized();
-
-            var user = _db.Users.Include(u => u.Roles).FirstOrDefault(u => u.Username == username);
-            if (user == null) return NotFound();
-
-            var roles = user.Roles;
-            if (roles != null)
+            var user = await ResolveUserAsync();
+            if (user == null)
             {
-                var toRemove = roles.FirstOrDefault(r => r.Name == "Mentor");
-                if (toRemove != null)
-                {
-                    roles.Remove(toRemove);
-                }
+                return Unauthorized();
             }
 
-            var existingProfile = _db.MentorProfiles.FirstOrDefault(m => m.UserId == user.Id);
-            var deletedChatIds = new List<Guid>();
+            var mentorRole = user.Roles.FirstOrDefault(r => r.Name == "Mentor");
+            if (mentorRole != null)
+            {
+                user.Roles.Remove(mentorRole);
+            }
+
+            var existingProfile = await _db.MentorProfiles.FirstOrDefaultAsync(m => m.UserId == user.Id);
+            IReadOnlyCollection<Guid> deletedChatIds = Array.Empty<Guid>();
+
             if (existingProfile != null)
             {
-                var profileIdStr = existingProfile.Id.ToString();
-                var userIdStr = user.Id.ToString();
-                var mentorGuid = user.Id;
-
-                var chats = _db.Chats
-                    .Include(c => c.Messages)
-                    .Where(c =>
-                        (!string.IsNullOrEmpty(c.ExternalMentorId) && (c.ExternalMentorId == profileIdStr || c.ExternalMentorId == userIdStr))
-                        || c.User1Id == mentorGuid
-                        || c.User2Id == mentorGuid
-                    ).ToList();
-
-                foreach (var c in chats)
-                {
-                    if (c.Messages != null && c.Messages.Any())
-                    {
-                        _db.Messages.RemoveRange(c.Messages);
-                    }
-                    deletedChatIds.Add(c.Id);
-                    _db.Chats.Remove(c);
-                }
-
-                var remainingMessages = _db.Messages.Where(m => m.SenderId == user.Id && !deletedChatIds.Contains(m.ChatId)).ToList();
-                if (remainingMessages.Any())
-                {
-                    _db.Messages.RemoveRange(remainingMessages);
-                }
-
+                deletedChatIds = await _chatService.DeleteMentorChatsAsync(user.Id, existingProfile.Id);
                 _db.MentorProfiles.Remove(existingProfile);
             }
 
             await _db.SaveChangesAsync();
 
-            try
+            if (deletedChatIds.Count > 0)
             {
-                if (deletedChatIds != null && deletedChatIds.Any())
+                try
                 {
                     await _hubContext.Clients.All.SendAsync("ChatsDeleted", deletedChatIds);
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to broadcast deleted chats for mentor {UserId}", user.Id);
+                }
             }
-            catch { }
 
             return Ok(new { userId = user.Id, username = user.Username });
         }
 
         [AllowAnonymous]
         [HttpGet("resolve/{id}")]
-        public IActionResult ResolveDisplayName(string id)
+        public async Task<IActionResult> ResolveDisplayName(string id)
         {
-            if (string.IsNullOrWhiteSpace(id)) return BadRequest();
-
-            Guid g;
-            if (Guid.TryParse(id, out g))
+            if (string.IsNullOrWhiteSpace(id))
             {
-                var user = _db.Users.FirstOrDefault(u => u.Id == g);
-                if (user != null)
+                return BadRequest();
+            }
+
+            var user = await ResolveUserByIdentifierAsync(id);
+            return Ok(new { displayName = user != null ? FormatDisplayName(user.Username) : (string?)null });
+        }
+
+        private async Task<UserDMO?> ResolveUserAsync(string? explicitUserId = null)
+        {
+            var username = User?.Identity?.Name;
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                var byName = await _db.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Username == username);
+                if (byName != null)
                 {
-                    var cleaned = System.Text.RegularExpressions.Regex.Replace(user.Username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
-                    var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    for (int i = 0; i < parts.Length; i++) if (parts[i].Length > 0) parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
-                    return Ok(new { displayName = string.Join(' ', parts) });
+                    return byName;
                 }
             }
 
-            var u2 = _db.Users.FirstOrDefault(u => u.Username == id);
-            if (u2 != null)
+            if (!string.IsNullOrWhiteSpace(explicitUserId) && Guid.TryParse(explicitUserId, out var parsedUserId))
             {
-                var cleaned = System.Text.RegularExpressions.Regex.Replace(u2.Username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
-                var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                for (int i = 0; i < parts.Length; i++) if (parts[i].Length > 0) parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
-                return Ok(new { displayName = string.Join(' ', parts) });
+                return await _db.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Id == parsedUserId);
             }
 
-            var mp = _db.MentorProfiles.FirstOrDefault(m => m.Id.ToString() == id || m.UserId.ToString() == id);
-            if (mp != null)
+            return null;
+        }
+
+        private async Task<UserDMO?> ResolveUserByIdentifierAsync(string id)
+        {
+            if (Guid.TryParse(id, out var parsed))
             {
-                var owner = _db.Users.FirstOrDefault(u => u.Id == mp.UserId);
-                if (owner != null)
+                var directUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == parsed);
+                if (directUser != null)
                 {
-                    var cleaned = System.Text.RegularExpressions.Regex.Replace(owner.Username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
-                    var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    for (int i = 0; i < parts.Length; i++) if (parts[i].Length > 0) parts[i] = char.ToUpper(parts[i][0]) + parts[i].Substring(1);
-                    return Ok(new { displayName = string.Join(' ', parts) });
+                    return directUser;
+                }
+
+                var mentorProfile = await _db.MentorProfiles.FirstOrDefaultAsync(m => m.Id == parsed);
+                if (mentorProfile != null)
+                {
+                    return await _db.Users.FirstOrDefaultAsync(u => u.Id == mentorProfile.UserId);
                 }
             }
 
-            return Ok(new { displayName = (string?)null });
+            var byUsername = await _db.Users.FirstOrDefaultAsync(u => u.Username == id);
+            if (byUsername != null)
+            {
+                return byUsername;
+            }
+
+            var byProfileString = await _db.MentorProfiles.FirstOrDefaultAsync(m => m.Id.ToString() == id || m.UserId.ToString() == id);
+            if (byProfileString != null)
+            {
+                return await _db.Users.FirstOrDefaultAsync(u => u.Id == byProfileString.UserId);
+            }
+
+            return null;
+        }
+
+        private static string FormatDisplayName(string username)
+        {
+            var cleaned = System.Text.RegularExpressions.Regex.Replace(username ?? string.Empty, "[^a-zA-Z0-9]+", " ");
+            var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length > 0)
+                {
+                    parts[i] = char.ToUpper(parts[i][0]) + parts[i][1..];
+                }
+            }
+
+            return parts.Length == 0 ? "Mentor" : string.Join(' ', parts);
         }
     }
 }

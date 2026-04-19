@@ -9,6 +9,9 @@ namespace PM.Data.Entities
         public Guid User2Id { get; set; }
         public UserDMO User2 { get; set; } = null!;
         public string? ExternalMentorId { get; set; }
-        public ICollection<Message> Messages { get; set; } = new List<Message>();
+        public string? LastMessageContent { get; set; }
+        public DateTime? LastMessageAt { get; set; }
+        public Guid? LastMessageSenderId { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

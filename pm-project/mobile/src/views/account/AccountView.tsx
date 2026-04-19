@@ -3,11 +3,20 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { API_URL } from "../../constants/api";
-import { getMentors } from "../../viewmodels/home/homeViewModel";
 import { getToken, getUserId, removeToken } from "../../utils/storage";
 import reviewCache from "../../utils/reviewCache";
 import eventBus from "../../utils/eventBus";
 import { useRouter } from "expo-router";
+
+async function getMentors(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_URL}/mentors/list`);
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('getMentors error', err);
+  }
+  return [];
+}
 
 interface OutReview {
   id: string;
@@ -71,6 +80,7 @@ export default function AccountView() {
                     const jr = await resp.json();
                     item.reviewedUserName = jr.displayName ?? null;
                   }
+
                 } catch { }
                 if (!item.reviewedUserName) {
                   try {

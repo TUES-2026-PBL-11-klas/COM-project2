@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using PM.Core.Services;
 using PM.Data.Context;
 using PM.Data.Entities;
+using PM.Data.Repositories;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -21,14 +23,19 @@ namespace PM.Tests.Services
         }
 
         [Fact]
-        public async Task SendMessageAsync_AddsMessageToDatabase()
+        public async Task SendMessageAsync_CallsRepositoryAndReturnsMessage()
         {
             // Arrange
             var dbContext = GetDbContext();
-            var service = new ChatService(dbContext);
+            var messageRepo = new Mock<IMessageRepository>();
+            messageRepo.Setup(m => m.AddMessageAsync(It.IsAny<MessageDMO>())).Returns(Task.CompletedTask);
+            var service = new ChatService(dbContext, messageRepo.Object);
 
             var chatId = Guid.NewGuid();
             var senderId = Guid.NewGuid();
+            // Ensure a chat exists in the DB so SendMessageAsync can find it
+            dbContext.Chats.Add(new PM.Data.Entities.Chat { Id = chatId, Name = "test", User1Id = Guid.Empty, User2Id = Guid.Empty });
+            await dbContext.SaveChangesAsync();
 
             // Act
             var result = await service.SendMessageAsync(chatId, senderId, "Hello World!");
@@ -38,10 +45,9 @@ namespace PM.Tests.Services
             Assert.Equal(chatId, result.ChatId);
             Assert.Equal(senderId, result.SenderId);
             Assert.Equal("Hello World!", result.Content);
-            
-            // Verify db context
-            var count = await dbContext.Messages.CountAsync();
-            Assert.Equal(1, count);
+
+            // Verify repository was used
+            messageRepo.Verify(m => m.AddMessageAsync(It.IsAny<MessageDMO>()), Times.Once);
         }
 
         [Fact]
@@ -49,19 +55,16 @@ namespace PM.Tests.Services
         {
             // Arrange
             var dbContext = GetDbContext();
-            var service = new ChatService(dbContext);
-
+            var messageRepo = new Mock<IMessageRepository>();
             var chatId = Guid.NewGuid();
-            
-            // Add a message in the past
-            dbContext.Messages.Add(new Message { Id = Guid.NewGuid(), ChatId = chatId, SenderId = Guid.NewGuid(), Content = "First", CreatedAt = DateTime.UtcNow.AddMinutes(-10) });
-            // Add a message now
-            dbContext.Messages.Add(new Message { Id = Guid.NewGuid(), ChatId = chatId, SenderId = Guid.NewGuid(), Content = "Second", CreatedAt = DateTime.UtcNow });
-            
-            // Add a message for another chat
-            dbContext.Messages.Add(new Message { Id = Guid.NewGuid(), ChatId = Guid.NewGuid(), SenderId = Guid.NewGuid(), Content = "Other Chat", CreatedAt = DateTime.UtcNow });
-            
-            await dbContext.SaveChangesAsync();
+
+            var msgs = new[] {
+                new MessageDMO { Id = Guid.NewGuid(), ChatId = chatId, SenderId = Guid.NewGuid(), Content = "First", CreatedAt = DateTime.UtcNow.AddMinutes(-10) },
+                new MessageDMO { Id = Guid.NewGuid(), ChatId = chatId, SenderId = Guid.NewGuid(), Content = "Second", CreatedAt = DateTime.UtcNow }
+            };
+
+            messageRepo.Setup(m => m.GetMessagesForChatAsync(chatId)).ReturnsAsync(msgs);
+            var service = new ChatService(dbContext, messageRepo.Object);
 
             // Act
             var messages = await service.GetChatMessagesAsync(chatId);
