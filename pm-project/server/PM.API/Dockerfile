@@ -2,11 +2,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY ["PM.API/PM.API.csproj", "PM.API/"]
-COPY ["PM.Core/PM.Core.csproj", "PM.Core/"]
-COPY ["PM.Data/PM.Data.csproj", "PM.Data/"]
+COPY PMProject.slnx ./
+COPY PM.API/PM.API.csproj PM.API/
+COPY PM.Core/PM.Core.csproj PM.Core/
+COPY PM.Data/PM.Data.csproj PM.Data/
 
-RUN dotnet restore "PM.API/PM.API.csproj"
+RUN dotnet restore "PMProject.slnx"
 
 COPY . .
 WORKDIR /src/PM.API
