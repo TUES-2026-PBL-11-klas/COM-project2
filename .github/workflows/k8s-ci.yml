@@ -94,4 +94,4 @@ jobs:
     - name: Restart Deployments
       run: |
         kubectl rollout restart deployment/pm-api -n pm-project
-        kubectl rollout restart deployment/alloy -n pm-project
+        kubectl rollout restart deployment/grafana-alloy -n pm-project
